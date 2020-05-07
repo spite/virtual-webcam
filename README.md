@@ -6,7 +6,7 @@ NOTE: You can use it as a regular library, check out cam.html.
 
 ![Virtual webcam](shader-cam.png)
 
-To use:
+To use (Chromium):
 - download or clone the repo
 - go to chrome://extensions
 - enable Developer Mode
@@ -14,10 +14,16 @@ To use:
 - Browse to the folder with the extension (where the manifest.json is)
 - Note:Pages will need to be reloaded after an extension is installed to be able to use it
 
+To use (Firefox):
+- download or clone the repo
+- go to about:debugging#/runtime/this-firefox
+- Click "Load Temporary Add-on..."
+- Browse to the folder with the extension and select the manifest.json
+- Note:Pages will need to be reloaded after an extension is installed to be able to use it
+
 Now any (most) pages using getUserMedia should be able to see a "Chrome Virtual Webcam" device
 
 Should work on Chromium based browsers that support extensions.
-I tried Firefox but the extension wasn't even starting, will have to investigate.
 
 Caveats:
 - Some pages use shims or do some checks that might break with the extension 
