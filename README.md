@@ -15,9 +15,10 @@ Now any (most) pages using getUserMedia should be able to see a "Chrome Virtual 
 Caveats:
 - Some pages use shims or do some checks that might break with the extension 
   - WebRTC samples: https://webrtc.github.io/samples/src/content/devices/input-output/
-- For now, the Virtual Webcam takes the default webcam and inverts it
+- For now, the Virtual Webcam takes the default webcam and applies a WebGL filter to it
   - That means that the default webcam can be the last used webcam in the system, if there are several
-  
+- Change filters in js/media-devices.js
+
 Tested with
 - Hangouts
 - Meet
@@ -29,4 +30,5 @@ Ideas:
 - Youtube video to replace feed
 - Add ML like FaceMesh or other feature detection systems:
   - add privacy bar over eyes
+- Try to stream from a canvas in a page (shader editor, drawing, etc.) as a MediaSource.
   
