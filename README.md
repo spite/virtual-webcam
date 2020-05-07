@@ -2,6 +2,8 @@
 
 This is a proof of concept of adding a virtual MediaDevice in a browser extension.
 
+![Virtual webcam](shader-cam.png)
+
 To use:
 - download or clone the repo
 - go to chrome://extensions
