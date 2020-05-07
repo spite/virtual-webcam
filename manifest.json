@@ -14,18 +14,18 @@
         "<all_urls>"
       ],
       "js": [
-        "inject.js"
+        "js/inject.js"
       ],
       "run_at": "document_start",
       "all_frames": true
     }
   ],
   "permissions": [
-    "http://*/*",
-    "https://*/*"
+    "tabs",
+    "<all_urls>"
   ],
   "manifest_version": 2,
   "web_accessible_resources": [
-    "*"
+    "js/*"
   ]
 }
