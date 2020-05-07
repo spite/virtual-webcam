@@ -26,7 +26,12 @@ Tested with
 - Meet
 - Zoom
 - Doesn't seem to work on Duo
-  
+
+Security concerns, what if a bad actor wants to capture and broadcast the stream:
+- The browser will tell the user that they're using a developer extension (a bit weak as security measures go)
+- The webcam light will still turn on. Doesn't solve if the actor is active during a valid video call, though.
+- I guess it's possible -and probably easy- to stream from an extension to another server. Nothing is preventing any extension creator from doing it right now, without a virtual webcam. Just MitM and record.
+
 Ideas:
 - Shader editor
 - Youtube video to replace feed
