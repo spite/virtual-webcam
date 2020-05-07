@@ -14,6 +14,9 @@ To use:
 
 Now any (most) pages using getUserMedia should be able to see a "Chrome Virtual Webcam" device
 
+Should work on Chromium based browsers that support extensions.
+I tried Firefox but the extension wasn't even starting, will have to investigate.
+
 Caveats:
 - Some pages use shims or do some checks that might break with the extension 
   - WebRTC samples: https://webrtc.github.io/samples/src/content/devices/input-output/
