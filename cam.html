@@ -1,0 +1,66 @@
+<script>
+
+  class FilterStream {
+    constructor(stream) {
+      this.stream = stream;
+      const video = document.createElement('video');
+      video.addEventListener('playing', () => {
+        this.canvas.width = this.video.videoWidth;
+        this.canvas.height = this.video.videoHeight;
+        this.update();
+      });
+      video.srcObject = stream;
+      video.autoplay = true;
+      this.video = video;
+      const canvas = document.createElement('canvas');
+      this.canvas = canvas;
+      this.ctx = this.canvas.getContext('2d');
+      this.stream = this.canvas.captureStream();
+    }
+
+    update() {
+      this.ctx.filter = 'invert(1)';
+      this.ctx.drawImage(this.video, 0, 0);
+      requestAnimationFrame(() => this.update());
+    }
+  }
+
+  const enumerateDevicesFn = MediaDevices.prototype.enumerateDevices;
+  const getUserMediaFn = MediaDevices.prototype.getUserMedia;
+
+  MediaDevices.prototype.enumerateDevices = async function () {
+    const res = await enumerateDevicesFn.call(navigator.mediaDevices);
+    res.push({
+      deviceId: "virtual",
+      groupID: "uh",
+      kind: "videoinput",
+      label: "Virtual Chrome Webcam"
+    });
+    return res;
+  }
+
+  MediaDevices.prototype.getUserMedia = async function () {
+    const args = arguments;
+    if (args.length && args[0].video.deviceId === 'virtual') {
+      const res = await getUserMediaFn.call(navigator.mediaDevices, { video: true, audio: false });
+      if (res) {
+        const filter = new FilterStream(res);
+        return filter.stream;
+      }
+    }
+    const res = await getUserMediaFn.call(navigator.mediaDevices, ...arguments);
+    return res;
+  }
+
+  async function init() {
+    const res = await navigator.mediaDevices.enumerateDevices();
+    console.log(res);
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: 'virtual' }, audio: false });
+    const video = document.createElement('video');
+    video.srcObject = stream;
+    video.autoplay = true;
+    document.body.append(video);
+  }
+
+  init();
+</script>
