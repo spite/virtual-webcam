@@ -50,3 +50,6 @@ Ideas:
   - add privacy bar over eyes
 - Try to stream from a canvas in a page (shader editor, drawing, etc.) as a MediaSource.
   
+
+# License
+This project is licensed under the [CC-BY-4.0 License](https://creativecommons.org/licenses/by/4.0/)
