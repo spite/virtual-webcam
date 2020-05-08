@@ -1,8 +1,8 @@
-import { YoutubeStream, FilterStream } from './filter-stream.js';
+import { FilterStream } from './filter-stream.js';
 
 // Ideally we'd use an editor or import shaders directly from the API.
-//import { distortedTV as shader } from './distorted-tv.js';
-import { moneyFilter as shader } from './money-filter.js';
+import { distortedTV as shader } from './distorted-tv.js';
+//import { moneyFilter as shader } from './money-filter.js';
 
 function monkeyPatchMediaDevices() {
   if (!('MediaDevices' in navigator)) {
@@ -49,9 +49,7 @@ function monkeyPatchMediaDevices() {
           constraints
         );
         if (res) {
-          //const filter = new FilterStream(res, shader);
-          //return filter.outputStream;
-          const ytStream = new YoutubeStream('');
+          const filter = new FilterStream(res, shader);
           return filter.outputStream;
         }
       }
