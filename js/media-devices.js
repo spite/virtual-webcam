@@ -5,9 +5,6 @@ import { distortedTV as shader } from './distorted-tv.js';
 //import { moneyFilter as shader } from './money-filter.js';
 
 function monkeyPatchMediaDevices() {
-  if (!('MediaDevices' in navigator)) {
-    return;
-  }
 
   const enumerateDevicesFn = MediaDevices.prototype.enumerateDevices;
   const getUserMediaFn = MediaDevices.prototype.getUserMedia;
