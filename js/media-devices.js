@@ -23,10 +23,13 @@ function monkeyPatchMediaDevices() {
 
   MediaDevices.prototype.getUserMedia = async function (userConstrains, ...args) {
     console.log(userConstrains);
-    if (userConstrains && userConstrains.video && userConstrains.video.deviceId) {
+    const video = userConstrains && userConstrains.video;
+    if (video) {
       if (
-        userConstrains.video.deviceId === "virtual" ||
-        userConstrains.video.deviceId.exact === "virtual"
+        window.videoHijack ||
+        video.deviceId && (
+        video.deviceId === "virtual" ||
+        video.deviceId.exact === "virtual")
       ) {
         // This constraints could mimick closely the request.
         // Also, there could be a preferred webcam on the options.
@@ -34,9 +37,9 @@ function monkeyPatchMediaDevices() {
         const constraints = {
           video: {
             facingMode: userConstrains.facingMode,
-            advanced: userConstrains.video.advanced,
-            width: userConstrains.video.width,
-            height: userConstrains.video.height,
+            advanced: video.advanced,
+            width: video.width,
+            height: video.height,
           },
           audio: false,
         };
