@@ -21,23 +21,25 @@ function monkeyPatchMediaDevices() {
     return res;
   };
 
-  MediaDevices.prototype.getUserMedia = async function () {
-    const args = arguments;
-    console.log(args[0]);
-    if (args.length && args[0].video && args[0].video.deviceId) {
+  MediaDevices.prototype.getUserMedia = async function (userConstrains, ...args) {
+    console.log(userConstrains);
+    const video = userConstrains && userConstrains.video;
+    if (video) {
       if (
-        args[0].video.deviceId === "virtual" ||
-        args[0].video.deviceId.exact === "virtual"
+        window.videoHijack ||
+        video.deviceId && (
+        video.deviceId === "virtual" ||
+        video.deviceId.exact === "virtual")
       ) {
         // This constraints could mimick closely the request.
         // Also, there could be a preferred webcam on the options.
         // Right now it defaults to the predefined input.
         const constraints = {
           video: {
-            facingMode: args[0].facingMode,
-            advanced: args[0].video.advanced,
-            width: args[0].video.width,
-            height: args[0].video.height,
+            facingMode: userConstrains.facingMode,
+            advanced: video.advanced,
+            width: video.width,
+            height: video.height,
           },
           audio: false,
         };
@@ -51,7 +53,7 @@ function monkeyPatchMediaDevices() {
         }
       }
     }
-    const res = await getUserMediaFn.call(navigator.mediaDevices, ...arguments);
+    const res = await getUserMediaFn.call(navigator.mediaDevices, userConstrains, ...args);
     return res;
   };
 
