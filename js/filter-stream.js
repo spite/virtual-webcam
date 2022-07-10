@@ -1,13 +1,18 @@
 import { ShaderRenderer } from './shader-renderer.js';
+import { ThreeJSRenderer } from './threejs-renderer.js';
 
 class FilterStream {
   constructor(stream, shader) {
     console.log("New Filter for stream", stream);
     this.stream = stream;
+
     const video = document.createElement("video");
     const canvas = document.createElement("canvas");
+
     this.canvas = canvas;
-    this.renderer = new ShaderRenderer(this.canvas, video, shader);
+    console.log("Canvas: ", canvas);
+    //this.renderer = new ShaderRenderer(this.canvas, video, shader);
+    this.renderer = new ThreeJSRenderer(this.canvas, video);
 
     video.addEventListener("playing", () => {
       // Use a 2D Canvas.
@@ -15,7 +20,7 @@ class FilterStream {
       // this.canvas.height = this.video.videoHeight;
 
       // Use a WebGL Renderer.
-      this.renderer.setSize(this.video.videoWidth, this.video.videoHeight);
+      //this.renderer.setSize(this.video.videoWidth, this.video.videoHeight);
       this.update();
     });
     video.srcObject = stream;

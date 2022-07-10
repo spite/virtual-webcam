@@ -4,6 +4,6 @@ findPreferredWebcamID().then(targetDeviceId => {
     console.log("targetDeviceId: ", targetDeviceId);
     monkeyPatchMediaDevices(targetDeviceId);
 })
-.catch(error => {
-    console.error(`Failed to find preferred camera: ${error}`);
-});
+//.catch(error => {
+//    console.error(`Failed to find preferred camera: ${error}`);
+//});
