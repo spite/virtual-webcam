@@ -6,6 +6,7 @@
 
   async function init() {
     const res = await navigator.mediaDevices.enumerateDevices();
+    console.log("Resulting devices:");
     console.log(res);
     const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: 'virtual' }, audio: false });
     const video = document.createElement('video');
