@@ -21,11 +21,20 @@
     }
   ],
   "permissions": [
-    "tabs",
+    "tabs"
+  ],
+  "host_permissions": [
     "<all_urls>"
   ],
-  "manifest_version": 2,
+  "manifest_version": 3,
   "web_accessible_resources": [
-    "js/*"
+    {
+      "resources": [
+        "js/*"
+      ],
+      "matches": [
+        "*://*/*"
+      ]
+    }
   ]
 }
