@@ -1,31 +1,120 @@
 {
   "name": "Virtual Webcam",
-  "version": "1.0.0",
-  "minimum_chrome_version": "10.0",
+  "version": "1.3.0",
+  "manifest_version": 3,
+  "minimum_chrome_version": "111",
   "icons": {
     "16": "icon-16.png",
     "48": "icon-48.png",
     "128": "icon-128.png"
   },
-  "description": "Virtual webcam.",
+  "description": "A virtual webcam with live filters. Use your camera, a tab or window, a video file, or a video playing in another tab as the picture.",
+  "permissions": [
+    "storage",
+    "scripting",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_title": "Virtual Webcam",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon-16.png",
+      "48": "icon-48.png",
+      "128": "icon-128.png"
+    }
+  },
+  "options_ui": {
+    "page": "editor.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "js/background.js"
+  },
   "content_scripts": [
     {
       "matches": [
         "<all_urls>"
       ],
       "js": [
-        "js/inject.js"
+        "js/filter-registry.js",
+        "js/filters/none.js",
+        "js/filters/black-and-white.js",
+        "js/filters/sepia.js",
+        "js/filters/pixelate.js",
+        "js/filters/posterize.js",
+        "js/filters/crt.js",
+        "js/filters/game-boy.js",
+        "js/filters/distorted-tv.js",
+        "js/filters/pencil-sketch.js",
+        "js/filters/comic.js",
+        "js/filters/money.js",
+        "js/filters/thermal.js",
+        "js/filters/kaleidoscope.js",
+        "js/filters/rgb-glitch.js",
+        "js/filters/eye-bar.js",
+        "js/shader-renderer.js",
+        "js/processor-client.js",
+        "js/filter-stream.js",
+        "js/extension-link.js",
+        "js/sources.js",
+        "js/effects.js",
+        "js/source-manager.js",
+        "js/media-devices.js",
+        "js/extension-settings.js",
+        "js/main.js"
       ],
       "run_at": "document_start",
-      "all_frames": true
+      "all_frames": true,
+      "match_about_blank": true,
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "js/content/bridge.js",
+        "js/content/panel.js",
+        "js/content/tab-video.js",
+        "js/content/relay-source.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_about_blank": true
     }
   ],
-  "permissions": [
-    "tabs",
-    "<all_urls>"
-  ],
-  "manifest_version": 2,
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "virtual-webcam@spite",
+      "strict_min_version": "128.0"
+    }
+  },
   "web_accessible_resources": [
-    "js/*"
-  ]
+    {
+      "resources": [
+        "source-frame.html",
+        "js/video-store.js",
+        "js/source-frame.js",
+        "processor.html",
+        "js/processor.js",
+        "vendor/mediapipe/*",
+        "vendor/mediapipe/wasm/*",
+        "vendor/mediapipe/models/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  "sandbox": {
+    "pages": [
+      "processor.html"
+    ]
+  },
+  "content_security_policy": {
+    "sandbox": "sandbox allow-scripts; default-src 'self'; script-src 'self' blob: 'unsafe-eval' 'wasm-unsafe-eval'; connect-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; worker-src 'self' blob:; frame-src 'none'; child-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'"
+  }
 }

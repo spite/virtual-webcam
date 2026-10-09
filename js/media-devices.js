@@ -1,61 +1,183 @@
-import { FilterStream } from './filter-stream.js';
+(() => {
+  const vw = (globalThis.__virtualWebcam ??= {});
 
-// Ideally we'd use an editor or import shaders directly from the API.
-import { distortedTV as shader } from './distorted-tv.js';
-//import { moneyFilter as shader } from './money-filter.js';
+  const VIRTUAL_ID = "virtual";
+  const VIRTUAL_GROUP_ID = "virtual";
+  const VIRTUAL_LABEL = "Virtual Chrome Webcam";
+  const PATCHED = Symbol.for("virtual-webcam");
 
-function monkeyPatchMediaDevices() {
+  function isVirtualId(value) {
+    if (value == null) return false;
+    if (typeof value === "string") return value === VIRTUAL_ID;
+    if (Array.isArray(value)) return value.includes(VIRTUAL_ID);
+    return isVirtualId(value.exact) || isVirtualId(value.ideal);
+  }
 
-  const enumerateDevicesFn = MediaDevices.prototype.enumerateDevices;
-  const getUserMediaFn = MediaDevices.prototype.getUserMedia;
+  function requestsVirtual(video) {
+    return isVirtualId(video.deviceId) ||
+      (video.advanced ?? []).some((set) => isVirtualId(set.deviceId));
+  }
 
-  MediaDevices.prototype.enumerateDevices = async function () {
-    const res = await enumerateDevicesFn.call(navigator.mediaDevices);
-    // We could add "Virtual VHS" or "Virtual Median Filter" and map devices with filters.
-    res.push({
-      deviceId: "virtual",
-      groupID: "uh",
+  function namesDevice(video) {
+    return video.deviceId != null ||
+      (video.advanced ?? []).some((set) => set.deviceId != null);
+  }
+
+  function withoutDeviceId(video) {
+    const { deviceId, ...rest } = video;
+    if (rest.advanced) {
+      rest.advanced = rest.advanced.map(({ deviceId, ...set }) => set);
+    }
+    return rest;
+  }
+
+  // Mirrors the real cameras: no label or group until the page has camera permission.
+  function createVirtualDevice(permitted) {
+    const info = {
+      deviceId: VIRTUAL_ID,
       kind: "videoinput",
-      label: "Virtual Chrome Webcam",
-    });
-    return res;
-  };
+      label: permitted ? VIRTUAL_LABEL : "",
+      groupId: permitted ? VIRTUAL_GROUP_ID : "",
+    };
+    const props = {
+      toJSON: { value: () => ({ ...info }) },
+      getCapabilities: { value: () => ({ deviceId: info.deviceId, groupId: info.groupId }) },
+    };
+    for (const [key, value] of Object.entries(info)) {
+      props[key] = { value, enumerable: true };
+    }
+    const proto = (globalThis.InputDeviceInfo ?? MediaDeviceInfo).prototype;
+    return Object.create(proto, props);
+  }
 
-  MediaDevices.prototype.getUserMedia = async function () {
-    const args = arguments;
-    console.log(args[0]);
-    if (args.length && args[0].video && args[0].video.deviceId) {
-      if (
-        args[0].video.deviceId === "virtual" ||
-        args[0].video.deviceId.exact === "virtual"
-      ) {
-        // This constraints could mimick closely the request.
-        // Also, there could be a preferred webcam on the options.
-        // Right now it defaults to the predefined input.
-        const constraints = {
-          video: {
-            facingMode: args[0].facingMode,
-            advanced: args[0].video.advanced,
-            width: args[0].video.width,
-            height: args[0].video.height,
-          },
-          audio: false,
-        };
-        const res = await getUserMediaFn.call(
-          navigator.mediaDevices,
-          constraints
-        );
-        if (res) {
-          const filter = new FilterStream(res, shader);
-          return filter.outputStream;
+  // The filter stops once the app has stopped every copy of its track, clones included.
+  function disguiseTrack(track, filter) {
+    const getSettings = track.getSettings.bind(track);
+    const stop = track.stop.bind(track);
+    const clone = track.clone.bind(track);
+    let released = false;
+    filter.copies = (filter.copies ?? 0) + 1;
+    Object.defineProperties(track, {
+      label: { value: VIRTUAL_LABEL },
+      getSettings: {
+        value: () => ({ ...getSettings(), deviceId: VIRTUAL_ID, groupId: VIRTUAL_GROUP_ID }),
+      },
+      clone: {
+        value: () => disguiseTrack(clone(), filter),
+      },
+      stop: {
+        value: () => {
+          stop();
+          if (released) return;
+          released = true;
+          if (--filter.copies === 0) filter.stop();
+        },
+      },
+    });
+    return track;
+  }
+
+  // settings: { ready: Promise, current(): { virtualDefault, filter, videoSource, flip, background, backgroundImage }, onChange(listener) }
+  function monkeyPatchMediaDevices(settings) {
+    if (MediaDevices.prototype[PATCHED]) return;
+    Object.defineProperty(MediaDevices.prototype, PATCHED, { value: true });
+
+    const { FilterStream } = vw;
+    const filters = new Set();
+    const getUserMediaFn = MediaDevices.prototype.getUserMedia;
+    const manager = new vw.SourceManager((c) => getUserMediaFn.call(navigator.mediaDevices, c));
+
+    const isVirtualDefault = async () => {
+      await settings.ready;
+      return settings.current().virtualDefault;
+    };
+
+    let applying = Promise.resolve();
+    // Applies the filter, flip and effects to every running stream, in order, so a slow processor load can't land late.
+    const applySettings = () => {
+      applying = applying.then(async () => {
+        const current = settings.current();
+        for (const filter of filters) {
+          if (filter.stopped) filters.delete(filter);
+        }
+        const processor = filters.size ? await vw.effects?.sync(current) ?? null : null;
+        for (const filter of filters) {
+          filter.setFilter(current.filter);
+          filter.setFlip(current.flip);
+          filter.setProcessing(processor);
+        }
+      });
+      return applying;
+    };
+
+    let videoSource = null;
+    let background = null;
+    settings.onChange(() => {
+      const current = settings.current();
+      applySettings();
+      if (videoSource !== null && current.videoSource !== videoSource) manager.switchTo(current.videoSource);
+      if (background !== null && current.background !== background) manager.setBackground(current.background);
+      videoSource = current.videoSource;
+      background = current.background;
+    });
+    const enumerateDevicesFn = MediaDevices.prototype.enumerateDevices;
+
+    MediaDevices.prototype.enumerateDevices = async function () {
+      const devices = await enumerateDevicesFn.call(this);
+      const cameras = devices.filter((device) => device.kind === "videoinput");
+      if (cameras.length) {
+        const device = createVirtualDevice(cameras.some((camera) => camera.label));
+        // Listed first so apps that pick the first camera pick it.
+        if (await isVirtualDefault()) {
+          devices.splice(devices.indexOf(cameras[0]), 0, device);
+        } else {
+          devices.push(device);
         }
       }
-    }
-    const res = await getUserMediaFn.call(navigator.mediaDevices, ...arguments);
-    return res;
-  };
+      return devices;
+    };
 
-  console.log('VIRTUAL WEBCAM INSTALLED.')
-}
+    MediaDevices.prototype.getUserMedia = async function (constraints) {
+      const requested = constraints?.video;
+      const video = typeof requested === "object" && requested ? requested : {};
+      const useVirtual = requested && (
+        requestsVirtual(video) || (!namesDevice(video) && await isVirtualDefault())
+      );
+      if (!useVirtual) {
+        return getUserMediaFn.call(this, constraints);
+      }
 
-export { monkeyPatchMediaDevices }
+      await settings.ready;
+      const current = settings.current();
+      const result = await manager.start(current.videoSource, withoutDeviceId(video), (track, stop) => {
+        const filter = new FilterStream(track, vw.PASSTHROUGH_SHADER, stop);
+        filter.setFilter(current.filter);
+        filter.setFlip(current.flip);
+        return filter;
+      }, current.background);
+
+      let audioTracks = [];
+      if (constraints.audio) {
+        try {
+          audioTracks = (await getUserMediaFn.call(this, { audio: constraints.audio })).getAudioTracks();
+        } catch (e) {
+          if (result.filter) {
+            result.filter.stop();
+          } else {
+            result.track.stop();
+          }
+          throw e;
+        }
+      }
+      if (!result.filter) return new MediaStream([result.track, ...audioTracks]);
+      filters.add(result.filter);
+      applySettings();
+      return new MediaStream([
+        disguiseTrack(result.filter.outputTrack, result.filter),
+        ...audioTracks,
+      ]);
+    };
+  }
+
+  vw.monkeyPatchMediaDevices = monkeyPatchMediaDevices;
+})();

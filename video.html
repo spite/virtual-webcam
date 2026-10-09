@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Virtual Webcam</title>
+  <link rel="stylesheet" href="css/video.css">
+</head>
+<body>
+  <main>
+    <h1 id="heading"></h1>
+    <p id="intro" class="intro"></p>
+
+    <div id="drop" class="drop">
+      <video id="preview" muted loop playsinline hidden></video>
+      <img id="image-preview" alt="" hidden>
+      <div id="empty" class="empty">
+        <p id="empty-text"></p>
+        <p id="empty-hint" class="hint"></p>
+      </div>
+    </div>
+
+    <div class="row">
+      <span id="file-name" class="file-name"></span>
+      <button id="choose" type="button" class="primary">Choose video…</button>
+      <button id="remove" type="button" hidden>Remove</button>
+    </div>
+    <p id="status" class="status" role="status"></p>
+    <input id="input" type="file" accept="video/*" hidden>
+
+    <label id="use-row" class="use" hidden>
+      <input type="checkbox" id="use"> <span id="use-label"></span>
+    </label>
+  </main>
+
+  <script src="js/filter-registry.js"></script>
+  <script src="js/video-store.js"></script>
+  <script src="js/video-page.js"></script>
+</body>
+</html>

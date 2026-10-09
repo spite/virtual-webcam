@@ -1,6 +1,13 @@
 // "Distorted TV" by ehj1 https://shadertoy.com/view/ldXGW4
+// Shadertoy default licence: CC BY-NC-SA 3.0 (https://creativecommons.org/licenses/by-nc-sa/3.0/)
 
-const distortedTV = `
+(() => {
+  const vw = (globalThis.__virtualWebcam ??= {});
+
+  vw.addFilter({
+    id: "distorted-tv",
+    name: "Distorted TV",
+    source: `
 // change these values to 0.0 to turn off individual effects
 float vertJerkOpt = 1.0;
 float vertMovementOpt = 1.0;
@@ -77,7 +84,7 @@ float staticV(vec2 uv) {
     float staticHeight = snoise(vec2(9.0,iTime*1.2+3.0))*0.3+5.0;
     float staticAmount = snoise(vec2(1.0,iTime*1.2-6.0))*0.1+0.3;
     float staticStrength = snoise(vec2(-9.75,iTime*0.6-3.0))*2.0+2.0;
-	return (1.0-step(snoise(vec2(5.0*pow(iTime,2.0)+pow(uv.x*7.0,1.2),pow((mod(iTime,100.0)+100.0)*uv.y*0.3+3.0,staticHeight))),staticAmount))*staticStrength;
+	return (1.0-step(snoise(vec2(5.0*pow(mod(iTime,100.0),2.0)+pow(uv.x*7.0,1.2),pow((mod(iTime,100.0)+100.0)*uv.y*0.3+3.0,staticHeight))),staticAmount))*staticStrength;
 }
 
 
@@ -120,6 +127,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 	
 	fragColor = vec4(color,1.0);
 }
-`;
-
-export { distortedTV }
+`,
+  });
+})();

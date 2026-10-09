@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Virtual Webcam Filters</title>
+  <link rel="stylesheet" href="css/editor.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <h1>Filters</h1>
+      <div class="buttons">
+        <button id="new" type="button" title="New GLSL shader filter">New shader</button>
+        <button id="new-js" type="button" title="New JavaScript filter">New JS</button>
+        <button id="import" type="button" title="Import .glsl, .frag or .js files">Import…</button>
+      </div>
+      <input id="import-file" type="file" accept=".glsl,.frag,.fs,.txt,.js,.mjs" multiple hidden>
+    </div>
+    <nav id="filter-list" aria-label="Filters"></nav>
+  </aside>
+
+  <main>
+    <div class="toolbar">
+      <input id="name" type="text" aria-label="Filter name" autocomplete="off" spellcheck="false">
+      <span id="language" class="badge subtle"></span>
+      <span id="in-use" class="badge" hidden>In use</span>
+      <div class="spacer"></div>
+      <button id="use" type="button" class="primary">Use for camera</button>
+      <button id="duplicate" type="button">Duplicate</button>
+      <button id="export" type="button">Export</button>
+      <button id="reset" type="button">Reset to original</button>
+      <button id="delete" type="button" class="danger">Delete</button>
+    </div>
+    <p id="builtin-note" class="note" hidden></p>
+
+    <div class="workspace">
+      <section class="code" aria-label="Shader source">
+        <div class="code-box">
+          <div id="gutter" aria-hidden="true"></div>
+          <textarea id="source" spellcheck="false" wrap="off" autocapitalize="off" autocomplete="off"></textarea>
+        </div>
+        <div id="status" class="status" role="status"></div>
+        <ul id="errors" class="errors"></ul>
+      </section>
+
+      <section class="preview" aria-label="Preview">
+        <div class="preview-head">
+          <h2>Preview</h2>
+          <label id="mirror-option" class="mirror-option" hidden>
+            <input type="checkbox" id="mirror" checked> Mirror
+          </label>
+          <div class="segmented" role="group" aria-label="Preview source">
+            <button type="button" data-preview="pattern" aria-pressed="true">Test pattern</button>
+            <button type="button" data-preview="camera" aria-pressed="false">Camera</button>
+            <button type="button" data-preview="file" aria-pressed="false" disabled title="Choose a video file from the extension popup first">Video file</button>
+          </div>
+        </div>
+        <canvas id="preview" width="640" height="480"></canvas>
+        <p id="preview-status" class="hint"></p>
+
+        <details id="reference-glsl" class="reference">
+          <summary>Writing a filter</summary>
+          <p>Filters are <a href="https://www.shadertoy.com/howto" target="_blank" rel="noopener">Shadertoy</a>-style GLSL ES 3.0 shaders. Write a <code>mainImage</code> function; the camera is <code>iChannel0</code>.</p>
+          <ul>
+            <li><code>vec3 iResolution</code>: output size in pixels</li>
+            <li><code>float iTime</code>, <code>iTimeDelta</code>, <code>iFrameRate</code>; <code>int iFrame</code></li>
+            <li><code>vec4 iDate</code>: year, month, day, seconds</li>
+            <li><code>sampler2D iChannel0</code>: the camera; <code>iChannel1</code>–<code>3</code> are black</li>
+            <li><code>vec4 iMouse</code> is always zero</li>
+          </ul>
+          <p><code>texture2D()</code> works as an alias of <code>texture()</code>.</p>
+        </details>
+
+        <details id="reference-js" class="reference" hidden>
+          <summary>Writing a filter</summary>
+          <p>JavaScript filters run in a sandbox with no network access. Define:</p>
+          <ul>
+            <li><code>async setup({ mediapipe })</code> (optional): runs once when the filter loads.</li>
+            <li><code>draw(frame, ctx, info)</code>: runs for every frame. <code>frame</code> is an <code>ImageBitmap</code>, <code>ctx</code> a 2D context the size of the frame; whatever you draw is the output. <code>info</code> has <code>time</code>, <code>width</code>, <code>height</code> and <code>frame</code> (a counter).</li>
+          </ul>
+          <p>MediaPipe is bundled:</p>
+          <ul>
+            <li><code>await mediapipe.faceLandmarker(options)</code>: a <a href="https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker/web_js" target="_blank" rel="noopener">FaceLandmarker</a>; call <code>detectForVideo(frame, info.time)</code>.</li>
+            <li><code>await mediapipe.selfieSegmenter(options)</code>: an ImageSegmenter for separating people from the background.</li>
+            <li><code>mediapipe.vision</code>: the whole <code>@mediapipe/tasks-vision</code> API, with <code>mediapipe.fileset</code> and <code>mediapipe.models</code> for building other tasks.</li>
+          </ul>
+          <p>The filter you pick applies after the background effect, so <code>frame</code> already has your background.</p>
+        </details>
+      </section>
+    </div>
+  </main>
+
+  <script src="js/filter-registry.js"></script>
+  <script src="js/filters/none.js"></script>
+  <script src="js/filters/black-and-white.js"></script>
+  <script src="js/filters/sepia.js"></script>
+  <script src="js/filters/pixelate.js"></script>
+  <script src="js/filters/posterize.js"></script>
+  <script src="js/filters/crt.js"></script>
+  <script src="js/filters/game-boy.js"></script>
+  <script src="js/filters/distorted-tv.js"></script>
+  <script src="js/filters/pencil-sketch.js"></script>
+  <script src="js/filters/comic.js"></script>
+  <script src="js/filters/money.js"></script>
+  <script src="js/filters/thermal.js"></script>
+  <script src="js/filters/kaleidoscope.js"></script>
+  <script src="js/filters/rgb-glitch.js"></script>
+  <script src="js/filters/eye-bar.js"></script>
+  <script src="js/shader-renderer.js"></script>
+  <script src="js/processor-client.js"></script>
+  <script src="js/video-store.js"></script>
+  <script src="js/editor.js"></script>
+</body>
+</html>

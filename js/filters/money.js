@@ -1,6 +1,13 @@
 // "Money filter" by @giacomopc https://shadertoy.com/view/XlsXDN
+// Shadertoy default licence: CC BY-NC-SA 3.0 (https://creativecommons.org/licenses/by-nc-sa/3.0/)
 
-const moneyFilter = `
+(() => {
+  const vw = (globalThis.__virtualWebcam ??= {});
+
+  vw.addFilter({
+    id: "money",
+    name: "Money",
+    source: `
     void mainImage( out vec4 fragColor, in vec2 fragCoord )
   {
       vec2 xy = fragCoord.xy / iResolution.yy;
@@ -50,6 +57,6 @@ const moneyFilter = `
       
       fragColor = vec4(gris, gris, gris, 1.0);
   }
- `;
-
-export { moneyFilter }
+ `,
+  });
+})();

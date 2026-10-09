@@ -1,8 +1,24 @@
-<script type="module">
-
-  import { monkeyPatchMediaDevices } from './js/media-devices.js';
-
-  monkeyPatchMediaDevices();
+<script src="js/filter-registry.js"></script>
+<script src="js/filters/none.js"></script>
+<script src="js/filters/black-and-white.js"></script>
+<script src="js/filters/sepia.js"></script>
+<script src="js/filters/pixelate.js"></script>
+<script src="js/filters/posterize.js"></script>
+<script src="js/filters/crt.js"></script>
+<script src="js/filters/game-boy.js"></script>
+<script src="js/filters/distorted-tv.js"></script>
+<script src="js/filters/pencil-sketch.js"></script>
+<script src="js/filters/comic.js"></script>
+<script src="js/filters/money.js"></script>
+<script src="js/filters/thermal.js"></script>
+<script src="js/filters/kaleidoscope.js"></script>
+<script src="js/filters/rgb-glitch.js"></script>
+<script src="js/filters/eye-bar.js"></script>
+<script src="js/shader-renderer.js"></script>
+<script src="js/filter-stream.js"></script>
+<script src="js/media-devices.js"></script>
+<script src="js/main.js"></script>
+<script>
 
   async function init() {
     const res = await navigator.mediaDevices.enumerateDevices();
