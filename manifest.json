@@ -27,7 +27,7 @@
     }
   },
   "options_ui": {
-    "page": "editor.html",
+    "page": "studio.html",
     "open_in_tab": true
   },
   "background": {
@@ -76,6 +76,7 @@
         "<all_urls>"
       ],
       "js": [
+        "js/scenes.js",
         "js/content/bridge.js",
         "js/content/panel.js",
         "js/content/tab-video.js",
@@ -102,7 +103,8 @@
         "js/processor.js",
         "vendor/mediapipe/*",
         "vendor/mediapipe/wasm/*",
-        "vendor/mediapipe/models/*"
+        "vendor/mediapipe/models/*",
+        "js/shader-renderer.js"
       ],
       "matches": [
         "<all_urls>"

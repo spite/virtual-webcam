@@ -1,12 +1,13 @@
-// Runs in a sandboxed extension page: background effects and JavaScript filters, one frame at a time.
+// Runs in a sandboxed extension page: the background and the chain of effects, one frame at a time.
 (() => {
+  const vw = globalThis.__virtualWebcam;
   const BASE = new URL("vendor/mediapipe/", location.href).href;
   const MODELS = {
     faceLandmarker: `${BASE}models/face_landmarker.task`,
     selfieSegmenter: `${BASE}models/selfie_segmenter_landscape.tflite`,
   };
 
-  // The CSP keeps filters off the network; WebRTC isn't covered by it, so it's removed, along with child frames that would bring it back.
+  // The CSP keeps effects off the network; WebRTC isn't covered by it, so it's removed, along with child frames that would bring it back.
   for (const name of ["RTCPeerConnection", "webkitRTCPeerConnection", "RTCDataChannel", "RTCIceTransport"]) {
     try {
       Object.defineProperty(globalThis, name, { value: undefined, writable: false, configurable: false });
@@ -53,27 +54,29 @@
     }
   }
 
-  let filterTasks = [];
-  const mediapipe = {
-    vision: Vision,
-    models: MODELS,
-    fileset,
-    timestamp,
-    async faceLandmarker(options = {}) {
-      const task = await createTask(Vision.FaceLandmarker, MODELS.faceLandmarker, options);
-      filterTasks.push(task);
-      return task;
-    },
-    async selfieSegmenter(options = {}) {
-      const task = await createTask(Vision.ImageSegmenter, MODELS.selfieSegmenter, {
-        outputConfidenceMasks: true,
-        outputCategoryMask: false,
-        ...options,
-      });
-      filterTasks.push(task);
-      return task;
-    },
-  };
+  // Each JavaScript effect gets its own helper, so its tasks can be closed when the effect is removed.
+  function mediapipeFor(tasks) {
+    return {
+      vision: Vision,
+      models: MODELS,
+      fileset,
+      timestamp,
+      async faceLandmarker(options = {}) {
+        const task = await createTask(Vision.FaceLandmarker, MODELS.faceLandmarker, options);
+        tasks.push(task);
+        return task;
+      },
+      async selfieSegmenter(options = {}) {
+        const task = await createTask(Vision.ImageSegmenter, MODELS.selfieSegmenter, {
+          outputConfidenceMasks: true,
+          outputCategoryMask: false,
+          ...options,
+        });
+        tasks.push(task);
+        return task;
+      },
+    };
+  }
 
   const canvases = new Map();
   function workCanvas(name, width, height) {
@@ -150,17 +153,12 @@
     person.drawImage(mask, 0, 0, width, height);
     person.restore();
     out.drawImage(person.canvas, 0, 0);
-    return out.canvas;
+    return out.canvas.transferToImageBitmap();
   }
 
-  // Filter code is loaded as a blob script, so syntax and runtime errors report the filter's own line numbers.
+  // JavaScript effects are loaded as blob scripts, so syntax and runtime errors report the effect's own line numbers.
   globalThis.__filterDefinitions = {};
   let loadCount = 0;
-  let filter = null;
-  let filterCode = null;
-  let configureToken = 0;
-  let frameIndex = 0;
-  let lastDrawError = 0;
 
   function errorInfo(error, url) {
     const message = String(error?.message ?? error);
@@ -168,7 +166,7 @@
     return { line: match ? Number(match[1]) : null, message };
   }
 
-  function loadFilterCode(code) {
+  function loadScript(code) {
     return new Promise((resolve, reject) => {
       const key = `filter${++loadCount}`;
       const wrapped = `globalThis.__filterDefinitions[${JSON.stringify(key)}] = (() => {${code}\n;return { setup: typeof setup === "function" ? setup : null, draw: typeof draw === "function" ? draw : null };})();`;
@@ -190,7 +188,7 @@
         if (failure) {
           reject(failure);
         } else if (!definition?.draw) {
-          reject({ line: null, message: "A JavaScript filter must define draw(frame, ctx, info)." });
+          reject({ line: null, message: "A JavaScript effect must define draw(frame, ctx, info)." });
         } else {
           resolve({ ...definition, url });
         }
@@ -202,33 +200,43 @@
     });
   }
 
-  function disposeFilter() {
-    filter = null;
-    for (const task of filterTasks) {
+  const stepKey = (effect) => `${effect.language}:${effect.source}`;
+
+  async function createStep(effect) {
+    if (effect.language === "glsl") {
+      const renderer = new vw.ShaderRenderer(new OffscreenCanvas(1, 1));
+      try {
+        renderer.setShader(effect.source);
+      } catch (e) {
+        const first = e.errors?.[0];
+        throw { line: first?.line ?? null, message: first?.message ?? e.message };
+      }
+      return { ...effect, renderer };
+    }
+    const definition = await loadScript(effect.source);
+    const tasks = [];
+    try {
+      await definition.setup?.({ mediapipe: mediapipeFor(tasks) });
+    } catch (e) {
+      tasks.forEach((task) => task.close?.());
+      throw errorInfo(e, definition.url);
+    }
+    return { ...effect, definition, tasks };
+  }
+
+  function disposeStep(step) {
+    for (const task of step.tasks ?? []) {
       try {
         task.close();
       } catch {}
     }
-    filterTasks = [];
   }
 
-  async function runFilter(picture, width, height) {
-    const frame = picture instanceof ImageBitmap ? picture : picture.transferToImageBitmap();
-    const out = workCanvas("filter", width, height).ctx;
-    out.reset?.();
-    try {
-      await filter.draw(frame, out, { time: timestamp(), width, height, frame: frameIndex++ });
-    } catch (e) {
-      if (Date.now() - lastDrawError > 2000) {
-        lastDrawError = Date.now();
-        reply({ type: "filter-error", phase: "draw", error: errorInfo(e, filter.url) });
-      }
-      out.reset?.();
-      out.drawImage(frame, 0, 0, width, height);
-    }
-    frame.close();
-    return out.canvas;
-  }
+  let chain = [];
+  let chainKey = "[]";
+  let configureToken = 0;
+  let frameIndex = 0;
+  const lastDrawError = new Map();
 
   async function configure(next) {
     const token = ++configureToken;
@@ -236,54 +244,95 @@
     config.flip = next.flip;
     if (config.background !== "keep") getSegmenter().catch(() => {});
 
-    const code = next.filter?.code ?? null;
-    if (code === filterCode) return null;
-    filterCode = code;
-    disposeFilter();
-    if (code === null) return null;
-    try {
-      const definition = await loadFilterCode(code);
-      if (token !== configureToken) return null;
-      try {
-        await definition.setup?.({ mediapipe });
-      } catch (e) {
-        throw errorInfo(e, definition.url);
-      }
-      if (token === configureToken) filter = definition;
-      return null;
-    } catch (error) {
-      if (token === configureToken) filterCode = null;
-      return error;
+    const effects = (next.effects ?? []).map(({ language, source }) => ({ language, source }));
+    const key = JSON.stringify(effects);
+    if (key === chainKey) return [];
+
+    // Effects already running are kept as they are; only new ones load.
+    const pool = new Map();
+    for (const step of chain) {
+      if (!pool.has(stepKey(step))) pool.set(stepKey(step), []);
+      pool.get(stepKey(step)).push(step);
     }
+    const created = [];
+    const nextChain = [];
+    const errors = [];
+    for (const [index, effect] of effects.entries()) {
+      const reused = pool.get(stepKey(effect))?.shift();
+      if (reused) {
+        nextChain.push(reused);
+        continue;
+      }
+      try {
+        const step = await createStep(effect);
+        created.push(step);
+        nextChain.push(step);
+      } catch (error) {
+        errors.push({ index, line: error?.line ?? null, message: String(error?.message ?? error) });
+      }
+      if (token !== configureToken) {
+        created.forEach(disposeStep);
+        return [];
+      }
+    }
+    for (const steps of pool.values()) steps.forEach(disposeStep);
+    chain = nextChain;
+    chainKey = key;
+    return errors;
+  }
+
+  async function runStep(step, index, bitmap, width, height) {
+    if (step.renderer) {
+      step.renderer.setSize(width, height);
+      step.renderer.render(bitmap);
+      bitmap.close();
+      return step.renderer.canvas.transferToImageBitmap();
+    }
+    const out = workCanvas(`effect-${index}`, width, height).ctx;
+    out.reset?.();
+    try {
+      await step.definition.draw(bitmap, out, { time: timestamp(), width, height, frame: frameIndex });
+    } catch (e) {
+      if (Date.now() - (lastDrawError.get(step) ?? 0) > 2000) {
+        lastDrawError.set(step, Date.now());
+        reply({ type: "filter-error", phase: "draw", index, error: errorInfo(e, step.definition.url) });
+      }
+      out.reset?.();
+      out.drawImage(bitmap, 0, 0, width, height);
+    }
+    bitmap.close();
+    return out.canvas.transferToImageBitmap();
   }
 
   async function processFrame(bitmap, backgroundFrame) {
     const { width, height } = bitmap;
-    let picture = bitmap;
+    let current = bitmap;
     if (config.flip.x || config.flip.y) {
       const flipped = workCanvas("flip", width, height).ctx;
       flipped.setTransform(config.flip.x ? -1 : 1, 0, 0, config.flip.y ? -1 : 1, config.flip.x ? width : 0, config.flip.y ? height : 0);
-      flipped.drawImage(bitmap, 0, 0);
+      flipped.drawImage(current, 0, 0);
       flipped.setTransform(1, 0, 0, 1, 0, 0);
-      picture = flipped.canvas;
+      current.close();
+      current = flipped.canvas.transferToImageBitmap();
     }
     if (config.background !== "keep") {
-      picture = await replaceBackground(picture, width, height, backgroundFrame);
+      const composite = await replaceBackground(current, width, height, backgroundFrame);
+      current.close();
+      current = composite;
     }
-    if (filter) {
-      picture = await runFilter(picture, width, height);
+    for (const [index, step] of chain.entries()) {
+      current = await runStep(step, index, current, width, height);
     }
-    if (picture === bitmap) return bitmap;
-    bitmap.close();
-    return picture.transferToImageBitmap();
+    frameIndex++;
+    return current;
   }
 
   addEventListener("message", async (e) => {
     if (e.source !== parent) return;
     const message = e.data;
     if (message?.type === "configure") {
-      const error = await configure(message.config);
-      reply({ type: "configured", id: message.id, error });
+      const errors = await configure(message.config);
+      reply({ type: "configured", id: message.id, errors });
     } else if (message?.type === "background-image") {
       backgroundImage?.close();
       backgroundImage = message.bitmap ?? null;

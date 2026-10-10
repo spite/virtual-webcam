@@ -1,4 +1,7 @@
+importScripts("scenes.js");
+
 const CONTENT_SCRIPTS = [
+  "js/scenes.js",
   "js/content/bridge.js",
   "js/content/panel.js",
   "js/content/tab-video.js",
@@ -6,7 +9,18 @@ const CONTENT_SCRIPTS = [
 ];
 const FILE_TOKEN_LIFETIME = 30000;
 
+// Turns the settings from before scenes existed into scenes, once.
+async function migrateSettings() {
+  const { scenes } = await chrome.storage.local.get("scenes");
+  if (Array.isArray(scenes) && scenes.length) return;
+  const old = await chrome.storage.local.get(null);
+  await chrome.storage.local.set(globalThis.__virtualWebcam.scenes.migrate(old));
+}
+
+chrome.runtime.onStartup.addListener(migrateSettings);
+
 chrome.runtime.onInstalled.addListener(async () => {
+  await migrateSettings();
   chrome.contextMenus.create({
     id: "use-video-as-webcam",
     title: "Use this video as webcam",

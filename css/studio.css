@@ -1,0 +1,291 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.topbar h1 {
+  margin: 0;
+  padding: 12px 0;
+  font-size: 16px;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  align-self: stretch;
+}
+
+.tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 0 12px;
+}
+
+.tabs button[aria-selected="true"] {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+}
+
+.buttons.two button:last-child {
+  grid-column: auto;
+}
+
+.sidebar .buttons button {
+  padding: 5px 6px;
+  white-space: nowrap;
+}
+
+#scene-name {
+  min-width: 0;
+  width: 280px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.scene-item small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scene-item .text {
+  flex: 1;
+  min-width: 0;
+}
+
+.scene-workspace {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+  gap: 18px;
+  margin-top: 12px;
+}
+
+.scene-preview {
+  min-width: 0;
+}
+
+#scene-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: calc(100vh - 230px);
+  object-fit: contain;
+  border-radius: 8px;
+  background: #000;
+}
+
+.preview-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.layers {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.layer {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.layer + .layer {
+  margin-top: 10px;
+}
+
+.layer h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.layer .hint {
+  margin: 0 0 6px;
+}
+
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
+.checks label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.checks label:has(input:disabled) {
+  color: var(--muted);
+  cursor: default;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.option {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.option:hover {
+  background: var(--hover);
+}
+
+.option:has(input:checked) {
+  background: var(--selected);
+}
+
+.option:has(input:disabled) {
+  color: var(--muted);
+  cursor: default;
+}
+
+.option input {
+  margin: 3px 0 0;
+}
+
+.option .text {
+  flex: 1;
+  min-width: 0;
+}
+
+.option small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.media {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.media img,
+.media video {
+  width: 56px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #000;
+}
+
+.media .name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.media button {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.effect-list {
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.effect-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.effect-list li + li {
+  margin-top: 4px;
+}
+
+.effect-list .name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.effect-list .tag {
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.effect-list .missing {
+  color: var(--danger);
+}
+
+.effect-list button {
+  padding: 1px 7px;
+  font-size: 12px;
+}
+
+.effect-list .empty {
+  justify-content: center;
+  border-style: dashed;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+#add-effect {
+  width: 100%;
+  padding: 5px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+@media (max-width: 1000px) {
+  .scene-workspace {
+    grid-template-columns: 1fr;
+  }
+}

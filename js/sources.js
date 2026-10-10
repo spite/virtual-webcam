@@ -251,7 +251,31 @@
     };
   }
 
-  const openers = { display, "tab-video": tabVideo, file, relay };
+  // A still image as a video track, for scenes that show only the background image.
+  async function image({ getUserMedia }) {
+    await ensureCameraPermission(getUserMedia);
+    const bitmap = await createImageBitmap(await receiveStoredFile("background-image"));
+    const scale = Math.min(1, 1920 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(2, Math.round((bitmap.width * scale) / 2) * 2);
+    canvas.height = Math.max(2, Math.round((bitmap.height * scale) / 2) * 2);
+    const ctx = canvas.getContext("2d");
+    const draw = () => ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    draw();
+    const track = canvas.captureStream(5).getVideoTracks()[0];
+    // A canvas only produces frames when it's drawn to.
+    const timer = setInterval(draw, 200);
+    return {
+      track,
+      stop() {
+        clearInterval(timer);
+        track.stop();
+        bitmap.close();
+      },
+    };
+  }
+
+  const openers = { display, "tab-video": tabVideo, file, relay, image };
 
   vw.SourceUnavailable = SourceUnavailable;
   vw.receiveStoredFile = receiveStoredFile;

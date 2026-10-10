@@ -1,17 +1,11 @@
 (() => {
   const vw = (globalThis.__virtualWebcam ??= {});
 
-  const VIDEO_SOURCES = ["camera", "display", "tab-video", "file", "relay"];
-  const BACKGROUNDS = ["keep", "blur", "image", "display", "tab-video", "file", "relay"];
+  const BACKGROUNDS = ["room", "blur", "image", "display", "tab-video", "file", "relay"];
   let state = {
     virtualDefault: false,
-    filterId: vw.DEFAULT_FILTER_ID,
-    customSource: null,
-    customLanguage: "glsl",
-    overrides: {},
-    videoSource: "camera",
-    flip: { x: false, y: false },
-    background: "keep",
+    scene: { camera: true, flip: { x: false, y: false }, background: "room" },
+    effects: [],
     backgroundImage: null,
   };
   const listeners = new Set();
@@ -22,6 +16,17 @@
     setTimeout(resolve, 1000);
   });
 
+  function readEffect(effect) {
+    if (!effect || typeof effect !== "object") return null;
+    if (effect.builtin) {
+      const filter = vw.filters.find((candidate) => candidate.id === effect.id);
+      if (!filter) return null;
+      return { language: filter.language, source: typeof effect.source === "string" ? effect.source : filter.source };
+    }
+    if (typeof effect.source !== "string") return null;
+    return { language: effect.language === "js" ? "js" : "glsl", source: effect.source };
+  }
+
   document.addEventListener("virtual-webcam:settings", (e) => {
     let next;
     try {
@@ -29,16 +34,15 @@
     } catch {
       return;
     }
-    if (!next || typeof next !== "object") return;
+    if (!next || typeof next !== "object" || !next.scene) return;
     state = {
       virtualDefault: next.virtualDefault === true,
-      filterId: String(next.filterId),
-      customSource: typeof next.customSource === "string" ? next.customSource : null,
-      customLanguage: next.customLanguage === "js" ? "js" : "glsl",
-      overrides: next.overrides && typeof next.overrides === "object" ? next.overrides : {},
-      videoSource: VIDEO_SOURCES.includes(next.source) ? next.source : "camera",
-      flip: { x: next.flip?.x === true, y: next.flip?.y === true },
-      background: BACKGROUNDS.includes(next.background) ? next.background : "keep",
+      scene: {
+        camera: next.scene.camera !== false,
+        flip: { x: next.scene.flip?.x === true, y: next.scene.flip?.y === true },
+        background: BACKGROUNDS.includes(next.scene.background) ? next.scene.background : "room",
+      },
+      effects: (Array.isArray(next.effects) ? next.effects : []).map(readEffect).filter(Boolean),
       backgroundImage: next.backgroundImage == null ? null : String(next.backgroundImage),
     };
     resolveReady();
@@ -48,20 +52,12 @@
 
   vw.extensionSettings = {
     ready,
-    current: () => {
-      const filter = vw.findFilter(state.filterId);
-      const override = state.overrides[filter.id];
-      return {
-        virtualDefault: state.virtualDefault,
-        filter: state.customSource !== null
-          ? { language: state.customLanguage, source: state.customSource }
-          : { language: filter.language, source: typeof override === "string" ? override : filter.source },
-        videoSource: state.videoSource,
-        flip: state.flip,
-        background: state.background,
-        backgroundImage: state.backgroundImage,
-      };
-    },
+    current: () => ({
+      virtualDefault: state.virtualDefault,
+      ...state.scene,
+      effects: state.effects,
+      backgroundImage: state.backgroundImage,
+    }),
     onChange: (listener) => listeners.add(listener),
   };
 })();

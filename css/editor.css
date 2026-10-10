@@ -47,8 +47,8 @@ body {
 
 body {
   margin: 0;
-  display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   background: var(--bg);
   color: var(--text);
   font: 14px/1.4 system-ui, sans-serif;
@@ -101,9 +101,20 @@ button.danger {
   padding: 16px 14px 10px;
 }
 
-h1 {
+.view {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+}
+
+.view[hidden] {
+  display: none;
+}
+
+.sidebar-title {
   margin: 0 0 10px;
-  font-size: 17px;
+  font-size: 15px;
 }
 
 .buttons {
@@ -179,7 +190,7 @@ main {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  height: 100vh;
+  min-height: 0;
   padding: 14px 18px 18px;
 }
 
@@ -452,6 +463,10 @@ code {
 
 @media (max-width: 900px) {
   body {
+    height: auto;
+  }
+
+  .view {
     grid-template-columns: 1fr;
   }
 

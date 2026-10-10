@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Virtual Webcam Studio</title>
+  <link rel="stylesheet" href="css/editor.css">
+  <link rel="stylesheet" href="css/studio.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Virtual Webcam Studio</h1>
+    <nav class="tabs" role="tablist" aria-label="Studio">
+      <button id="tab-scenes" type="button" role="tab" aria-selected="true" aria-controls="scenes-view">Scenes</button>
+      <button id="tab-effects" type="button" role="tab" aria-selected="false" aria-controls="effects-view">Effects</button>
+    </nav>
+  </header>
+
+  <div id="scenes-view" class="view" role="tabpanel" aria-labelledby="tab-scenes">
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <h2 class="sidebar-title">Scenes</h2>
+        <div class="buttons two">
+          <button id="new-scene" type="button">New scene</button>
+          <button id="duplicate-scene" type="button">Duplicate</button>
+        </div>
+      </div>
+      <nav id="scene-list" aria-label="Scenes"></nav>
+    </aside>
+
+    <main>
+      <div class="toolbar">
+        <input id="scene-name" type="text" aria-label="Scene name" autocomplete="off" spellcheck="false">
+        <span id="scene-active" class="badge" hidden>Active</span>
+        <div class="spacer"></div>
+        <button id="activate-scene" type="button" class="primary">Use this scene</button>
+        <button id="delete-scene" type="button" class="danger">Delete</button>
+      </div>
+      <p class="note">Changes save as you go. Changes to the active scene apply to calls straight away.</p>
+
+      <div class="scene-workspace">
+        <section class="scene-preview" aria-label="Preview">
+          <canvas id="scene-canvas" width="640" height="360"></canvas>
+          <div class="preview-row">
+            <div class="segmented" role="group" aria-label="Camera in the preview">
+              <button type="button" data-camera="pattern" aria-pressed="true">Test pattern</button>
+              <button type="button" data-camera="camera" aria-pressed="false">My camera</button>
+            </div>
+            <button id="preview-live" type="button" hidden>Preview live</button>
+          </div>
+          <p id="scene-status" class="hint"></p>
+        </section>
+
+        <section class="layers" aria-label="Layers">
+          <div class="layer">
+            <h3>You</h3>
+            <div class="checks">
+              <label><input type="checkbox" id="layer-camera"> Camera on</label>
+              <label><input type="checkbox" id="layer-mirror"> Mirror</label>
+              <label><input type="checkbox" id="layer-upside-down"> Upside down</label>
+            </div>
+            <p id="camera-note" class="hint" hidden>Pick an image or a video background to turn the camera off.</p>
+          </div>
+
+          <div class="layer">
+            <h3>Background</h3>
+            <div id="background-options" class="options" role="radiogroup" aria-label="Background"></div>
+          </div>
+
+          <div class="layer">
+            <h3>Effects</h3>
+            <p class="hint">Applied in order, top to bottom.</p>
+            <ol id="effect-list" class="effect-list"></ol>
+            <select id="add-effect" aria-label="Add effect"></select>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div id="effects-view" class="view" role="tabpanel" aria-labelledby="tab-effects" hidden>
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <h2 class="sidebar-title">Effects</h2>
+        <div class="buttons">
+          <button id="new" type="button" title="New GLSL shader effect">New shader</button>
+          <button id="new-js" type="button" title="New JavaScript effect">New JS</button>
+          <button id="import" type="button" title="Import .glsl, .frag or .js files">Import…</button>
+        </div>
+        <input id="import-file" type="file" accept=".glsl,.frag,.fs,.txt,.js,.mjs" multiple hidden>
+      </div>
+      <nav id="filter-list" aria-label="Effects"></nav>
+    </aside>
+
+    <main>
+      <div class="toolbar">
+        <input id="name" type="text" aria-label="Effect name" autocomplete="off" spellcheck="false">
+        <span id="language" class="badge subtle"></span>
+        <span id="in-use" class="badge" hidden>In scene</span>
+        <div class="spacer"></div>
+        <button id="use" type="button" class="primary" title="Add this effect to the scene selected in the Scenes tab">Add to scene</button>
+        <button id="duplicate" type="button">Duplicate</button>
+        <button id="export" type="button">Export</button>
+        <button id="reset" type="button">Reset to original</button>
+        <button id="delete" type="button" class="danger">Delete</button>
+      </div>
+      <p id="builtin-note" class="note" hidden></p>
+
+      <div class="workspace">
+        <section class="code" aria-label="Shader source">
+          <div class="code-box">
+            <div id="gutter" aria-hidden="true"></div>
+            <textarea id="source" spellcheck="false" wrap="off" autocapitalize="off" autocomplete="off"></textarea>
+          </div>
+          <div id="status" class="status" role="status"></div>
+          <ul id="errors" class="errors"></ul>
+        </section>
+
+        <section class="preview" aria-label="Preview">
+          <div class="preview-head">
+            <h2>Preview</h2>
+            <label id="mirror-option" class="mirror-option" hidden>
+              <input type="checkbox" id="mirror" checked> Mirror
+            </label>
+            <div class="segmented" role="group" aria-label="Preview source">
+              <button type="button" data-preview="pattern" aria-pressed="true">Test pattern</button>
+              <button type="button" data-preview="camera" aria-pressed="false">Camera</button>
+              <button type="button" data-preview="file" aria-pressed="false" disabled title="Choose a video file in a scene's background first">Video file</button>
+            </div>
+          </div>
+          <canvas id="preview" width="640" height="480"></canvas>
+          <p id="preview-status" class="hint"></p>
+
+          <details id="reference-glsl" class="reference">
+            <summary>Writing an effect</summary>
+            <p>Shader effects are <a href="https://www.shadertoy.com/howto" target="_blank" rel="noopener">Shadertoy</a>-style GLSL ES 3.0 shaders. Write a <code>mainImage</code> function; the camera is <code>iChannel0</code>.</p>
+            <ul>
+              <li><code>vec3 iResolution</code>: output size in pixels</li>
+              <li><code>float iTime</code>, <code>iTimeDelta</code>, <code>iFrameRate</code>; <code>int iFrame</code></li>
+              <li><code>vec4 iDate</code>: year, month, day, seconds</li>
+              <li><code>sampler2D iChannel0</code>: the camera; <code>iChannel1</code>–<code>3</code> are black</li>
+              <li><code>vec4 iMouse</code> is always zero</li>
+            </ul>
+            <p><code>texture2D()</code> works as an alias of <code>texture()</code>.</p>
+          </details>
+
+          <details id="reference-js" class="reference" hidden>
+            <summary>Writing an effect</summary>
+            <p>JavaScript effects run in a sandbox with no network access. Define:</p>
+            <ul>
+              <li><code>async setup({ mediapipe })</code> (optional): runs once when the effect loads.</li>
+              <li><code>draw(frame, ctx, info)</code>: runs for every frame. <code>frame</code> is an <code>ImageBitmap</code>, <code>ctx</code> a 2D context the size of the frame; whatever you draw is the output. <code>info</code> has <code>time</code>, <code>width</code>, <code>height</code> and <code>frame</code> (a counter).</li>
+            </ul>
+            <p>MediaPipe is bundled:</p>
+            <ul>
+              <li><code>await mediapipe.faceLandmarker(options)</code>: a <a href="https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker/web_js" target="_blank" rel="noopener">FaceLandmarker</a>; call <code>detectForVideo(frame, info.time)</code>.</li>
+              <li><code>await mediapipe.selfieSegmenter(options)</code>: an ImageSegmenter for separating people from the background.</li>
+              <li><code>mediapipe.vision</code>: the whole <code>@mediapipe/tasks-vision</code> API, with <code>mediapipe.fileset</code> and <code>mediapipe.models</code> for building other tasks.</li>
+            </ul>
+            <p>A scene's effects run in order after its background, so <code>frame</code> already has the background and any earlier effects.</p>
+          </details>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <input id="image-input" type="file" accept="image/*" hidden>
+  <input id="video-input" type="file" accept="video/*" hidden>
+
+  <script src="js/filter-registry.js"></script>
+  <script src="js/filters/none.js"></script>
+  <script src="js/filters/black-and-white.js"></script>
+  <script src="js/filters/sepia.js"></script>
+  <script src="js/filters/pixelate.js"></script>
+  <script src="js/filters/posterize.js"></script>
+  <script src="js/filters/crt.js"></script>
+  <script src="js/filters/game-boy.js"></script>
+  <script src="js/filters/distorted-tv.js"></script>
+  <script src="js/filters/pencil-sketch.js"></script>
+  <script src="js/filters/comic.js"></script>
+  <script src="js/filters/money.js"></script>
+  <script src="js/filters/thermal.js"></script>
+  <script src="js/filters/kaleidoscope.js"></script>
+  <script src="js/filters/rgb-glitch.js"></script>
+  <script src="js/filters/eye-bar.js"></script>
+  <script src="js/scenes.js"></script>
+  <script src="js/shader-renderer.js"></script>
+  <script src="js/processor-client.js"></script>
+  <script src="js/video-store.js"></script>
+  <script src="js/test-pattern.js"></script>
+  <script src="js/editor.js"></script>
+  <script src="js/studio.js"></script>
+</body>
+</html>

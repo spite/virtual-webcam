@@ -11,7 +11,6 @@
   // Applies a shader to a video track and exposes the result as outputTrack; the input can be swapped live.
   class FilterStream {
     constructor(sourceTrack, shader, stopSource) {
-      this.shader = null;
       this.crop = null;
       this.source = null;
       this.reader = null;
@@ -21,6 +20,7 @@
       this.height = 480;
       this.onStop = null;
       this.processor = null;
+      this.effects = [];
       this.flip = { x: false, y: false };
       this.background = null;
       this.backgroundCrop = null;
@@ -42,13 +42,12 @@
     }
 
     setShader(shader) {
-      if (shader === this.shader) return;
-      this.shader = shader;
-      try {
-        this.renderer.setShader(shader);
-      } catch (e) {
-        console.error("Virtual webcam: the filter doesn't compile, passing the video through.", e);
-        this.renderer.setShader(vw.PASSTHROUGH_SHADER);
+      this.setShaders([shader]);
+    }
+
+    setShaders(shaders) {
+      for (const error of this.renderer.setShaders(shaders)) {
+        console.error("Virtual webcam: an effect doesn't compile and is skipped.", error);
       }
     }
 
@@ -105,14 +104,24 @@
       this.placeholderTimer = null;
     }
 
-    setFilter({ language, source }) {
-      this.setShader(language === "js" ? vw.PASSTHROUGH_SHADER : source);
+    // effects: [{ language: "glsl" | "js", source }], applied in order.
+    setEffects(effects) {
+      this.effects = effects;
+      this.applyEffects();
     }
 
-    // With a processor, frames go through the sandbox (flip, background, JavaScript filter) before the shader.
+    // With a processor, frames go through the sandbox (flip, background and every effect) instead of the shaders here.
     setProcessing(processor) {
       this.processor = processor;
       this.applyFlip();
+      this.applyEffects();
+    }
+
+    applyEffects() {
+      const shaders = this.processor
+        ? []
+        : this.effects.filter((effect) => effect.language === "glsl").map((effect) => effect.source);
+      this.setShaders(shaders.length ? shaders : [vw.PASSTHROUGH_SHADER]);
     }
 
     setFlip(flip) {

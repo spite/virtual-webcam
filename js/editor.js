@@ -25,7 +25,8 @@ const gutter = $("gutter");
 
 let customFilters = [];
 let builtinOverrides = {};
-let activeFilterId = vw.DEFAULT_FILTER_ID;
+// The Studio's Scenes tab owns the selected scene; the editor adds effects to it.
+const sceneEffects = () => globalThis.studio?.selectedScene()?.effects ?? [];
 let selectedId = vw.DEFAULT_FILTER_ID;
 let errorLines = new Set();
 
@@ -48,9 +49,8 @@ function addCustomFilter(name, source, language = "glsl") {
   return filter;
 }
 
-function setActive(id) {
-  activeFilterId = id;
-  chrome.storage.local.set({ activeFilterId: id });
+function addToScene(id) {
+  globalThis.studio?.addEffect(id);
   renderList();
   renderToolbar();
 }
@@ -85,10 +85,10 @@ function renderList() {
         edited.textContent = "edited";
         item.append(edited);
       }
-      if (filter.id === activeFilterId) {
+      if (sceneEffects().includes(filter.id)) {
         const dot = document.createElement("span");
         dot.className = "dot";
-        dot.title = "In use";
+        dot.title = "In the selected scene";
         item.append(dot);
       }
       item.addEventListener("click", () => select(filter.id));
@@ -102,7 +102,7 @@ function renderList() {
 function renderToolbar() {
   const custom = Boolean(findCustom(selectedId));
   const edited = !custom && Boolean(builtinOverrides[selectedId]);
-  const inUse = selectedId === activeFilterId;
+  const inUse = sceneEffects().includes(selectedId);
   $("name").readOnly = !custom;
   $("delete").hidden = !custom;
   $("reset").hidden = !edited;
@@ -302,7 +302,7 @@ $("duplicate").addEventListener("click", () => {
   addCustomFilter(`${filter.name} copy`, sourceInput.value, languageOf(selectedId));
 });
 
-$("use").addEventListener("click", () => setActive(selectedId));
+$("use").addEventListener("click", () => addToScene(selectedId));
 
 $("reset").addEventListener("click", () => {
   const filter = findAny(selectedId);
@@ -317,8 +317,8 @@ $("delete").addEventListener("click", () => {
   if (!custom || !confirm(`Delete "${custom.name}"? This can't be undone.`)) return;
   customFilters = customFilters.filter((filter) => filter !== custom);
   chrome.storage.local.set({ customFilters });
-  if (activeFilterId === custom.id) setActive(vw.DEFAULT_FILTER_ID);
-  select(customFilters[0]?.id ?? activeFilterId);
+  globalThis.studio?.removeEffectEverywhere(custom.id);
+  select(customFilters[0]?.id ?? vw.DEFAULT_FILTER_ID);
 });
 
 $("export").addEventListener("click", () => {
@@ -346,8 +346,7 @@ window.addEventListener("pagehide", () => {
 });
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.activeFilterId) {
-    activeFilterId = changes.activeFilterId.newValue ?? vw.DEFAULT_FILTER_ID;
+  if (area === "local" && (changes.scenes || changes.activeSceneId)) {
     renderList();
     renderToolbar();
   }
@@ -364,66 +363,8 @@ try {
   previewStatus.textContent = "Preview unavailable: WebGL2 isn't supported here.";
 }
 
-const pattern = document.createElement("canvas");
-pattern.width = 640;
-pattern.height = 480;
-const patternContext = pattern.getContext("2d");
-
-function drawPattern(time) {
-  const ctx = patternContext;
-  const { width, height } = pattern;
-
-  const sky = ctx.createLinearGradient(0, 0, 0, height);
-  sky.addColorStop(0, "#2b5f9e");
-  sky.addColorStop(1, "#f2b880");
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, width, height);
-
-  const bars = ["#ffffff", "#ffd400", "#00c8d6", "#2fb34a", "#d43fb5", "#e0352b", "#2242c7", "#111111"];
-  bars.forEach((color, i) => {
-    ctx.fillStyle = color;
-    ctx.fillRect((i * width) / bars.length, 0, width / bars.length + 1, 70);
-  });
-
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
-  ctx.lineWidth = 1;
-  for (let x = 0; x <= width; x += 40) {
-    ctx.beginPath();
-    ctx.moveTo(x + 0.5, 70);
-    ctx.lineTo(x + 0.5, height);
-    ctx.stroke();
-  }
-
-  const cx = width / 2 + Math.sin(time * 0.8) * 140;
-  const cy = 280;
-  const head = ctx.createRadialGradient(cx - 30, cy - 40, 10, cx, cy, 110);
-  head.addColorStop(0, "#ffe0c2");
-  head.addColorStop(1, "#b9714a");
-  ctx.fillStyle = head;
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, 85, 105, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = "#2a1a12";
-  for (const dx of [-30, 30]) {
-    ctx.beginPath();
-    ctx.ellipse(cx + dx, cy - 20, 9, 12, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.strokeStyle = "#7a2f25";
-  ctx.lineWidth = 6;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.arc(cx, cy + 25, 32, 0.15 * Math.PI, 0.85 * Math.PI);
-  ctx.stroke();
-
-  ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
-  ctx.fillRect(0, height - 44, width, 44);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "600 22px system-ui, sans-serif";
-  ctx.textBaseline = "middle";
-  ctx.fillText("Virtual Webcam", 16, height - 22);
-}
+const pattern = vw.testPattern.canvas;
+const drawPattern = (time) => vw.testPattern.draw(time);
 
 let previewMode = "pattern";
 let video = null;
@@ -516,7 +457,7 @@ function previewSource() {
 
 function renderPreview() {
   requestAnimationFrame(renderPreview);
-  if (!renderer) return;
+  if (!renderer || $("effects-view")?.hidden) return;
   const source = previewSource();
   if (!source) return;
   if (languageOf(selectedId) !== "js") {
@@ -548,7 +489,7 @@ function renderPreview() {
 function renderVideoFile(videoFile) {
   const button = document.querySelector("[data-preview=file]");
   button.disabled = !videoFile;
-  button.title = videoFile ? videoFile.name : "Choose a video file from the extension popup first";
+  button.title = videoFile ? videoFile.name : "Choose a video file in a scene's background first";
   if (!videoFile && previewMode === "file") setPreviewMode("pattern");
 }
 
@@ -563,7 +504,7 @@ chrome.storage.local.get(vw.SETTINGS_DEFAULTS).then((settings) => {
   renderVideoFile(settings.videoFile);
   customFilters = settings.customFilters;
   builtinOverrides = settings.builtinOverrides;
-  activeFilterId = settings.activeFilterId;
-  select(findAny(activeFilterId) ? activeFilterId : vw.DEFAULT_FILTER_ID);
+  const first = sceneEffects().find((id) => findAny(id));
+  select(first ?? vw.DEFAULT_FILTER_ID);
   requestAnimationFrame(renderPreview);
 });

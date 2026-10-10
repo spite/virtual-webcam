@@ -82,8 +82,8 @@ void main() {
       this.startTime = performance.now();
       this.lastTime = 0;
       this.frame = 0;
-      this.source = null;
-      this.program = null;
+      this.sources = [];
+      this.passes = [];
       this.flip = { x: false, y: false };
 
       this.gl = canvas.getContext("webgl2", { alpha: false });
@@ -98,12 +98,7 @@ void main() {
 
     initResources() {
       const gl = this.gl;
-      this.texture = gl.createTexture();
-      gl.bindTexture(gl.TEXTURE_2D, this.texture);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      this.texture = this.createTexture();
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
       this.vao = gl.createVertexArray();
@@ -121,44 +116,119 @@ void main() {
       gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
       gl.viewport(0, 0, this.canvas.width, this.canvas.height);
       this.flipPass = null;
+      this.targets = [];
+    }
+
+    createTexture() {
+      const gl = this.gl;
+      const texture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      return texture;
+    }
+
+    // An offscreen texture to render into, resized on demand.
+    target(index, width, height) {
+      const gl = this.gl;
+      let target = this.targets[index];
+      if (!target) {
+        target = { texture: this.createTexture(), framebuffer: gl.createFramebuffer(), width: 0, height: 0 };
+        this.targets[index] = target;
+      }
+      if (target.width !== width || target.height !== height) {
+        gl.bindTexture(gl.TEXTURE_2D, target.texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target.texture, 0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        target.width = width;
+        target.height = height;
+      }
+      return target;
+    }
+
+    restore() {
+      const sources = this.sources;
+      this.passes = [];
+      this.sources = [];
+      this.initResources();
+      try {
+        this.setShaders(sources.length ? sources : [vw.PASSTHROUGH_SHADER]);
+      } catch (e) {
+        console.error("Virtual webcam: could not restore the filter.", e);
+      }
     }
 
     setFlip(x, y) {
       this.flip = { x: Boolean(x), y: Boolean(y) };
     }
 
-    // Copies the source texture flipped into an offscreen texture, which the filter then samples.
+    compilePass(source) {
+      const gl = this.gl;
+      const program = this.createProgram(vs, wrapShaderToy(source));
+      const uniforms = {};
+      const count = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
+      for (let i = 0; i < count; i++) {
+        const name = gl.getActiveUniform(program, i).name.replace(/\[0\]$/, "");
+        uniforms[name] = gl.getUniformLocation(program, name);
+      }
+      gl.useProgram(program);
+      for (let unit = 0; unit < 4; unit++) {
+        const location = uniforms[`iChannel${unit}`];
+        if (location) gl.uniform1i(location, unit);
+      }
+      if (uniforms.iSampleRate) gl.uniform1f(uniforms.iSampleRate, 44100);
+      return { program, uniforms };
+    }
+
+    replacePasses(passes, sources) {
+      for (const pass of this.passes) this.gl.deleteProgram(pass.program);
+      this.passes = passes;
+      this.sources = sources;
+      this.frame = 0;
+    }
+
+    // Throws a ShaderError and keeps the current shaders if this one doesn't compile.
+    setShader(source) {
+      this.replacePasses([this.compilePass(source)], [source]);
+    }
+
+    // Runs the shaders in order, one pass each; any that don't compile are skipped. Returns their errors.
+    setShaders(sources) {
+      if (sources.length === this.sources.length && sources.every((source, i) => source === this.sources[i])) return [];
+      const passes = [];
+      const errors = [];
+      for (const source of sources) {
+        try {
+          passes.push(this.compilePass(source));
+        } catch (e) {
+          if (!(e instanceof ShaderError)) throw e;
+          errors.push(e);
+        }
+      }
+      if (!passes.length) passes.push(this.compilePass(vw.PASSTHROUGH_SHADER));
+      this.replacePasses(passes, sources.slice());
+      return errors;
+    }
+
+    // Copies the source texture flipped into an offscreen texture, and returns that texture.
     flipSource(width, height, flipX, flipY) {
       const gl = this.gl;
       if (!this.flipPass) {
         const program = this.createProgram(vs, flipFs);
-        const texture = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         this.flipPass = {
           program,
-          texture,
-          framebuffer: gl.createFramebuffer(),
-          width: 0,
-          height: 0,
           source: gl.getUniformLocation(program, "source"),
           flip: gl.getUniformLocation(program, "flip"),
           size: gl.getUniformLocation(program, "size"),
         };
       }
       const pass = this.flipPass;
-      gl.bindTexture(gl.TEXTURE_2D, pass.texture);
-      if (pass.width !== width || pass.height !== height) {
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, pass.framebuffer);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, pass.texture, 0);
-        pass.width = width;
-        pass.height = height;
-      }
-      gl.bindFramebuffer(gl.FRAMEBUFFER, pass.framebuffer);
+      const target = this.target(2, width, height);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
       gl.useProgram(pass.program);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, this.texture);
@@ -168,45 +238,7 @@ void main() {
       gl.bindVertexArray(this.vao);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.bindTexture(gl.TEXTURE_2D, pass.texture);
-    }
-
-    restore() {
-      const source = this.source;
-      this.program = null;
-      this.initResources();
-      if (source !== null) {
-        try {
-          this.setShader(source);
-        } catch (e) {
-          console.error("Virtual webcam: could not restore the filter.", e);
-        }
-      }
-    }
-
-    // Throws a ShaderError and keeps the current shader if the new one doesn't compile.
-    setShader(source) {
-      const gl = this.gl;
-      const program = this.createProgram(vs, wrapShaderToy(source));
-      if (this.program) gl.deleteProgram(this.program);
-      this.program = program;
-      this.source = source;
-      this.frame = 0;
-
-      const uniforms = {};
-      const count = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
-      for (let i = 0; i < count; i++) {
-        const name = gl.getActiveUniform(program, i).name.replace(/\[0\]$/, "");
-        uniforms[name] = gl.getUniformLocation(program, name);
-      }
-      this.uniforms = uniforms;
-
-      gl.useProgram(program);
-      for (let unit = 0; unit < 4; unit++) {
-        const location = uniforms[`iChannel${unit}`];
-        if (location) gl.uniform1i(location, unit);
-      }
-      if (uniforms.iSampleRate) gl.uniform1f(uniforms.iSampleRate, 44100);
+      return target.texture;
     }
 
     createShader(sourceCode, type) {
@@ -259,7 +291,7 @@ void main() {
     // Returns false when nothing was drawn.
     render(source) {
       const gl = this.gl;
-      if (!this.program || gl.isContextLost()) return false;
+      if (!this.passes.length || gl.isContextLost()) return false;
 
       const time = ((performance.now() - this.startTime) / 1000) % TIME_WRAP;
       const delta = this.frame ? Math.max(0, time - this.lastTime) : 0;
@@ -272,22 +304,31 @@ void main() {
       const { width, height } = this.canvas;
       // WebGL ignores UNPACK_FLIP_Y_WEBGL for ImageBitmaps, so they arrive upside down.
       const flipY = this.flip.y !== (source instanceof ImageBitmap);
-      if (this.flip.x || flipY) this.flipSource(width, height, this.flip.x, flipY);
-      const u = this.uniforms;
-      const date = new Date();
-      gl.useProgram(this.program);
-      gl.uniform3f(u.iResolution, width, height, 1);
-      gl.uniform1f(u.iTime, time);
-      gl.uniform1f(u.iTimeDelta, delta);
-      gl.uniform1f(u.iFrameRate, delta ? 1 / delta : 0);
-      gl.uniform1i(u.iFrame, this.frame);
-      gl.uniform1fv(u.iChannelTime, [time, 0, 0, 0]);
-      gl.uniform3fv(u.iChannelResolution, [width, height, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-      gl.uniform4f(u.iDate, date.getFullYear(), date.getMonth(), date.getDate(),
-        date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds() + date.getMilliseconds() / 1000);
+      let input = this.flip.x || flipY ? this.flipSource(width, height, this.flip.x, flipY) : this.texture;
 
-      gl.bindVertexArray(this.vao);
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      const date = new Date();
+      const seconds = date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds() + date.getMilliseconds() / 1000;
+      this.passes.forEach((pass, i) => {
+        const last = i === this.passes.length - 1;
+        const target = last ? null : this.target(i % 2, width, height);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, target?.framebuffer ?? null);
+        const u = pass.uniforms;
+        gl.useProgram(pass.program);
+        gl.uniform3f(u.iResolution, width, height, 1);
+        gl.uniform1f(u.iTime, time);
+        gl.uniform1f(u.iTimeDelta, delta);
+        gl.uniform1f(u.iFrameRate, delta ? 1 / delta : 0);
+        gl.uniform1i(u.iFrame, this.frame);
+        gl.uniform1fv(u.iChannelTime, [time, 0, 0, 0]);
+        gl.uniform3fv(u.iChannelResolution, [width, height, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        gl.uniform4f(u.iDate, date.getFullYear(), date.getMonth(), date.getDate(), seconds);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, input);
+        gl.bindVertexArray(this.vao);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        if (target) input = target.texture;
+      });
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       this.frame++;
       return true;
     }

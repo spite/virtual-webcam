@@ -5,14 +5,11 @@
   vw.DEFAULT_FILTER_ID = "distorted-tv";
   vw.SETTINGS_DEFAULTS = {
     virtualDefault: false,
-    activeFilterId: vw.DEFAULT_FILTER_ID,
+    scenes: [],
+    activeSceneId: null,
     customFilters: [],
     builtinOverrides: {},
-    source: "camera",
     videoFile: null,
-    flipHorizontal: false,
-    flipVertical: false,
-    background: "keep",
     backgroundImage: null,
   };
 

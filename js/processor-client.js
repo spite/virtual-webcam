@@ -61,12 +61,12 @@
       });
     }
 
-    // Resolves with null, or { line, message } when the filter fails to load.
+    // config: { effects: [{ language, source }], background, flip }. Resolves with the effects' load errors: [{ index, line, message }].
     configure(config) {
       const key = JSON.stringify(config);
       if (key !== this.lastConfig) {
         this.lastConfig = key;
-        this.lastResult = this.send({ type: "configure", config }).then((reply) => reply.error ?? null);
+        this.lastResult = this.send({ type: "configure", config }).then((reply) => reply.errors ?? []);
       }
       return this.lastResult;
     }

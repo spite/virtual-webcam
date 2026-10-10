@@ -5,7 +5,9 @@
   --muted: #6e6e73;
   --border: #d9d9de;
   --hover: #f2f2f5;
+  --selected: #e8f0fb;
   --accent: #0b6bcb;
+  --notice: #f6f1e3;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -15,7 +17,9 @@
     --muted: #9b9ba3;
     --border: #3a3b40;
     --hover: #2a2b30;
+    --selected: #1f3550;
     --accent: #5aa7f0;
+    --notice: #33301f;
   }
 }
 
@@ -48,7 +52,7 @@ body {
 }
 
 h2 {
-  margin: 12px 0 5px;
+  margin: 14px 0 3px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -57,78 +61,82 @@ h2 {
 }
 
 .section-hint {
-  margin: -3px 0 5px;
+  margin: 0 0 6px;
   color: var(--muted);
   font-size: 11.5px;
 }
 
-h3 {
-  margin: 8px 6px 2px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--muted);
-}
-
-#filters {
-  max-height: 132px;
+.scenes {
+  max-height: 330px;
   overflow-y: auto;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 2px 0 4px;
-}
-
-.filter {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 4px 8px;
-  cursor: pointer;
-}
-
-.filter:hover {
-  background: var(--hover);
-}
-
-.filter input {
-  margin: 0;
-}
-
-.options {
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 3px 0;
 }
 
-.option {
+.scene {
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  padding: 3px 8px;
+  padding: 5px 8px;
   cursor: pointer;
 }
 
-.option:hover {
+.scene:hover {
   background: var(--hover);
 }
 
-.option input {
+.scene:has(input:checked) {
+  background: var(--selected);
+}
+
+.scene input {
   margin: 2px 0 0;
 }
 
-.option strong {
+.scene strong {
   display: block;
   font-weight: 500;
 }
 
-.option small {
+.scene small {
   display: block;
   color: var(--muted);
   font-size: 11.5px;
   overflow-wrap: anywhere;
 }
 
-button.link {
+.quick {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.quick label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.quick input {
   margin: 0;
+}
+
+.quick label:has(input:disabled) {
+  color: var(--muted);
+  cursor: default;
+}
+
+.notice {
+  margin: 10px 0 0;
+  padding: 7px 9px;
+  border-radius: 6px;
+  background: var(--notice);
+  font-size: 12px;
+}
+
+button.link {
   padding: 0;
   border: 0;
   background: none;
@@ -141,71 +149,19 @@ button.link:hover {
   text-decoration: underline;
 }
 
-.background-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-select {
-  flex: 1;
-  min-width: 0;
-  padding: 4px 6px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
-}
-
-.background-row .link {
-  flex: none;
-  white-space: nowrap;
-}
-
-.background-hint {
-  margin: 4px 0 0;
-}
-
-.filter .tag {
-  margin-left: auto;
-  padding: 0 5px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.flips {
-  display: flex;
-  gap: 16px;
-  margin-top: 8px;
-}
-
-.flips label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-}
-
-.flips input {
-  margin: 0;
-}
-
-#edit {
-  margin-top: 10px;
+#studio {
+  margin-top: 12px;
   width: 100%;
-  padding: 6px;
+  padding: 7px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: transparent;
   color: var(--text);
   font: inherit;
+  font-weight: 500;
   cursor: pointer;
 }
 
-#edit:hover {
+#studio:hover {
   background: var(--hover);
 }

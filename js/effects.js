@@ -6,7 +6,21 @@
   let processor = null;
   let imageVersion = null;
 
-  const needsProcessor = (settings) => settings.filter.language === "js" || settings.background !== "keep";
+  // What the engine runs for a scene: the main source, a second source shown behind you, and the processing.
+  function plan(settings) {
+    const sourceBackground = SOURCE_BACKGROUNDS.includes(settings.background);
+    const camera = settings.camera || !(sourceBackground || settings.background === "image");
+    return {
+      main: camera ? "camera" : settings.background,
+      secondary: camera && sourceBackground ? settings.background : null,
+      background: !camera || settings.background === "room" ? "keep" : sourceBackground ? "source" : settings.background,
+      flip: camera ? settings.flip : { x: false, y: false },
+      effects: settings.effects,
+      backgroundImage: settings.backgroundImage,
+    };
+  }
+
+  const needsProcessor = (plan) => plan.background !== "keep" || plan.effects.some((effect) => effect.language === "js");
 
   async function getProcessor() {
     if (!processor) {
@@ -34,13 +48,13 @@
     return resized;
   }
 
-  // Returns the processor set up for these settings, or null when none is needed or it can't run here.
-  async function sync(settings) {
-    if (!needsProcessor(settings) || !vw.extension) return null;
+  // Returns the processor set up for this plan, or null when none is needed or it can't run here.
+  async function sync(plan) {
+    if (!needsProcessor(plan) || !vw.extension) return null;
     try {
       const client = await getProcessor();
-      if (settings.background === "image" && settings.backgroundImage !== imageVersion) {
-        imageVersion = settings.backgroundImage;
+      if (plan.background === "image" && plan.backgroundImage !== imageVersion) {
+        imageVersion = plan.backgroundImage;
         let bitmap = null;
         try {
           bitmap = await loadBackgroundImage();
@@ -49,13 +63,13 @@
         }
         await client.setBackgroundImage(bitmap);
       }
-      const error = await client.configure({
-        filter: settings.filter.language === "js" ? { code: settings.filter.source } : null,
-        background: SOURCE_BACKGROUNDS.includes(settings.background) ? "source" : settings.background,
-        flip: settings.flip,
+      const errors = await client.configure({
+        effects: plan.effects,
+        background: plan.background,
+        flip: plan.flip,
       });
-      if (error) {
-        console.warn(`Virtual webcam: the JavaScript filter didn't load${error.line ? ` (line ${error.line})` : ""}: ${error.message}`);
+      for (const error of errors ?? []) {
+        console.warn(`Virtual webcam: effect ${error.index + 1} didn't load${error.line ? ` (line ${error.line})` : ""}: ${error.message}`);
       }
       return client;
     } catch (e) {
@@ -64,5 +78,5 @@
     }
   }
 
-  vw.effects = { needsProcessor, sync, SOURCE_BACKGROUNDS };
+  vw.effects = { plan, needsProcessor, sync, SOURCE_BACKGROUNDS };
 })();

@@ -3,13 +3,10 @@
   const content = (globalThis.__virtualWebcamContent ??= { handlers: {} });
   const DEFAULTS = {
     virtualDefault: false,
-    activeFilterId: null,
+    scenes: [],
+    activeSceneId: null,
     customFilters: [],
     builtinOverrides: {},
-    source: "camera",
-    flipHorizontal: false,
-    flipVertical: false,
-    background: "keep",
     backgroundImage: null,
   };
   const SETTINGS_EVENT = "virtual-webcam:settings";
@@ -17,19 +14,19 @@
   let settings;
   let lastSent;
 
+  // Custom effects travel with their code; built-in ones by id, plus your edited version if there is one.
+  function resolveEffect(id) {
+    const custom = settings.customFilters.find((filter) => filter.id === id);
+    if (custom) return { id, language: custom.language ?? "glsl", source: custom.source };
+    return { id, builtin: true, source: settings.builtinOverrides[id]?.source ?? null };
+  }
+
   const send = (force) => {
-    const custom = settings.customFilters.find((filter) => filter.id === settings.activeFilterId);
+    const scene = globalThis.__virtualWebcam.scenes.activeScene(settings);
     const payload = JSON.stringify({
       virtualDefault: settings.virtualDefault,
-      filterId: settings.activeFilterId,
-      customSource: custom?.source ?? null,
-      customLanguage: custom?.language ?? "glsl",
-      overrides: Object.fromEntries(
-        Object.entries(settings.builtinOverrides).map(([id, override]) => [id, override.source]),
-      ),
-      source: settings.source,
-      flip: { x: settings.flipHorizontal, y: settings.flipVertical },
-      background: settings.background,
+      scene: { camera: scene.camera, flip: scene.flip, background: scene.background },
+      effects: scene.effects.map(resolveEffect),
       backgroundImage: settings.backgroundImage?.updated ?? null,
     });
     if (!force && payload === lastSent) return;

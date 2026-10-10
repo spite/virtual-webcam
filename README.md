@@ -7,16 +7,11 @@ A browser extension that adds a virtual camera, "Virtual Chrome Webcam", to ever
 ## Features
 
 - **A virtual camera** that apps like Meet and Zoom list next to your real ones. A toggle can also make it the default camera.
-- **Sources:**
-  - your camera;
-  - a tab, window or screen;
-  - the video playing in a tab;
-  - a video file;
-  - a video shared from any tab with a right-click.
-- **Backgrounds:** blur, an image, or you cut out and placed over any of the other sources.
-- **Filters:** 15 built in, plus an editor for writing your own in GLSL (Shadertoy-style) or JavaScript. MediaPipe face tracking and segmentation are bundled.
-- **Mirroring:** flip the picture horizontally or vertically.
-- **Live changes:** everything applies live, even mid-call, with no reload and no need to restart the camera in the app.
+- **Scenes** that combine three layers, and that you switch between in one click, even mid-call:
+  - **You:** your camera, on or off, optionally mirrored.
+  - **Background:** your room, blurred, an image, a tab or window, the video playing in a tab, a video file, or a video shared from any tab with a right-click. With any background other than your room, you're cut out and placed over it.
+  - **Effects:** an ordered stack of filters. There are 15 built in, and you can write your own in GLSL (Shadertoy-style) or JavaScript, with MediaPipe face tracking and segmentation bundled.
+- **The Studio:** a full-page editor with a live preview, for building scenes and writing effects.
 
 ## Install
 
@@ -33,44 +28,44 @@ Firefox 128+ can load it as a temporary add-on from `about:debugging#/runtime/th
 
 In a video-call app, choose **Virtual Chrome Webcam** as the camera. To get it on sites that don't let you pick a camera, open the extension's popup and turn on **Use the virtual camera by default**. Sites that ask for a specific camera still get that camera.
 
-Everything else is set in the popup, and applies straight away to any call in progress.
+### The popup
 
-### Source
+- **Scenes:** pick one to switch to it straight away, even mid-call.
+- **Camera on / Mirror:** quick changes to the active scene.
+- **Notices:** a line appears when the scene needs something that's missing, such as a video file nobody has chosen.
+- **Open Studio…:** opens the Studio, where scenes are built.
 
-What the virtual camera shows.
+The extension starts with your previous settings as **My setup**, plus four starter scenes: **Plain camera**, **Blurred background**, **Presenting** (you over a shared tab or window) and **Privacy** (blurred background with an eye bar). Delete or change them as you like.
 
-| Source | How it works |
+### The Studio
+
+The **Scenes** tab has your scenes on the left. For the selected one, it shows a live preview and its three layers.
+
+**You**
+- **Camera on/off.** With the camera off, the background is shown on its own, which is how to stream just a tab, a video or an image.
+- **Mirror** and **Upside down** flip only your camera, so text in a background stays readable.
+
+**Background**
+
+| Background | What's behind you |
 |---|---|
-| Camera | Your real webcam. |
-| Tab, window or screen | Chrome's picker asks which one to share. |
-| Video in a tab | Pick a tab in Chrome's picker. The extension finds the main video playing in it and crops to it, following it as the page scrolls or resizes. |
-| Video file | Choose or drop a video on the extension's video page (popup → **Choose…**). It loops, without sound. |
-| Shared video | Right-click a video in any tab, choose **Use this video as webcam**, then **Share**. Only the video element is captured, using Element Capture, so player controls and overlays don't appear. It's sent to the call over a local WebRTC connection and stays shared until you stop it. |
+| Your room | Your real background. |
+| Blurred room | Your background, blurred. |
+| Image | An image you choose here. |
+| Tab, window or screen | Chrome's picker asks which one when the scene starts. |
+| Video in a tab | Pick a tab when the scene starts. The extension finds the main video playing in it and crops to it. |
+| Video file | A video you choose here. It loops, without sound. |
+| Shared video | Right-click a video in any tab, choose **Use this video as webcam**, then **Share**. Only the video element is captured, using Element Capture, so player controls and overlays don't appear. It stays shared until you stop it. |
 
-Chrome only shows its screen-sharing picker straight after a click in the page. If the camera starts without one, or you switch to a picker source from the popup, a small **Choose…** prompt appears in the call tab first.
+**Effects:** add effects from the library, reorder them, or remove them. They're applied top to bottom. **Edit** opens an effect in the **Effects** tab.
 
-If a source ends (for example, you stop sharing), the camera keeps running with a "Video source ended" card, and the page offers to switch back to the camera.
+The preview uses a test pattern or your camera. Tab and window backgrounds appear as placeholders until you click **Preview live**. Changes save as you go, and changes to the active scene reach calls immediately.
 
-### Background
+Chrome only shows its screen-sharing picker straight after a click in the page. If a scene with a tab or window background starts without one, a small **Choose…** prompt appears in the call tab first. If a background source ends (for example, you stop sharing), the camera keeps running with a "Video source ended" card, and the page offers to switch back to the camera.
 
-- **Keep:** your real background.
-- **Blur**.
-- **Image:** choose one from the popup.
-- **Over a tab, window or screen / the video in a tab / the video file / the shared video:** you're cut out of your camera picture and placed over that source. This is useful for presenting.
+## Writing effects
 
-### Filter
-
-Pick a filter in the popup, or open **Edit or create filters…** to write your own. Built-in filters can be edited in place: your version is saved separately and can be reset to the original.
-
-The built-in filters are:
-- **Shaders:** None, Black & white, Sepia, Pixelate, Posterize, CRT monitor, Game Boy, Distorted TV, Pencil sketch, Comic halftone, Money, Thermal camera, Kaleidoscope, RGB glitch.
-- **JavaScript:** Eye bar, a black bar over the eyes that follows each face.
-
-The filter applies after the background, and both apply to any source. **Flip horizontally** and **Flip vertically** flip the picture before the filter, so filters that draw shapes or text still come out the right way round.
-
-## Writing filters
-
-The editor compiles as you type, marks errors on the right line, and previews against a test pattern, your camera or the video file. Filters can be imported and exported as files.
+The Studio's **Effects** tab compiles as you type, marks errors on the right line, and previews against a test pattern, your camera or the video file. Filters can be imported and exported as files.
 
 ### GLSL shaders
 
@@ -122,16 +117,17 @@ MediaPipe Tasks Vision is bundled:
 
 Filters have no network access, so they can only use what's bundled.
 
-### Adding a built-in filter
+### Adding a built-in effect
 
-Add a file to `js/filters/` (see the existing ones), then list it in `manifest.json`, `popup.html`, `editor.html` and `cam.html`.
+Add a file to `js/filters/` (see the existing ones), then list it in `manifest.json`, `popup.html`, `studio.html` and `cam.html`.
 
 ## How it works
 
-- **The camera patch.** A content script runs in each page's own JavaScript world at `document_start`. It wraps `navigator.mediaDevices.enumerateDevices()` and `getUserMedia()`. When an app asks for the virtual camera, the extension opens the chosen source and runs it through a WebGL filter pipeline. It hands the app a generated video track (`MediaStreamTrackProcessor` → shader → `MediaStreamTrackGenerator`).
-- **Live switching.** All of a page's virtual camera streams share one source, so switching updates them all without the app's track changing.
-- **Settings.** They live in extension storage. A second content script, in the extension's isolated world, relays them to the page and brokers requests that need the extension, such as opening the video file or connecting to a shared video.
-- **The processor.** Background effects and JavaScript filters run in a sandboxed extension page that's embedded in the call page as a hidden frame. Frames travel in and out as `ImageBitmap`s. Because the frame belongs to the extension, the page's own security policy (Meet's, for example) doesn't affect it. It's only added while it's needed.
+- **The camera patch.** A content script runs in each page's own JavaScript world at `document_start`. It wraps `navigator.mediaDevices.enumerateDevices()` and `getUserMedia()`. When an app asks for the virtual camera, the extension opens the active scene's sources and runs them through a WebGL pipeline. It hands the app a generated video track (`MediaStreamTrackProcessor` → shaders → `MediaStreamTrackGenerator`).
+- **Scenes and plans.** A scene is stored as layers (camera, flip, background, effect ids). On the page it becomes a plan: the main source (the camera, or the background when the camera is off), an optional second source to show behind you, the background mode and the effect chain.
+- **Live switching.** All of a page's virtual camera streams share the same sources, so switching scenes updates them all without the app's track changing.
+- **Settings.** They live in extension storage. A second content script, in the extension's isolated world, resolves the active scene, relays it to the page, and brokers requests that need the extension, such as opening the video file or connecting to a shared video.
+- **The processor.** Shader-only scenes run in the page. Cut-out backgrounds and JavaScript effects run in a sandboxed extension page; when they're in use, the whole effect chain runs there in order, shaders included. That page is embedded in the call page as a hidden frame. Frames travel in and out as `ImageBitmap`s. Because the frame belongs to the extension, the page's own security policy (Meet's, for example) doesn't affect it. It's only added while it's needed.
 - **Shared videos.** The tab with the video captures itself, restricted to the video element (Element Capture), and sends the result to the call tab over a local WebRTC connection. The background script carries the connection setup between the two tabs.
 
 `cam.html` shows the filter pipeline used as a plain library, without the extension.

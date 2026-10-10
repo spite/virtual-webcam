@@ -11,57 +11,17 @@
   </label>
   <p class="hint">Or pick "Virtual Chrome Webcam" in a site's camera menu.</p>
 
-  <h2>Source</h2>
-  <p class="section-hint">Everything here applies live, even mid-call.</p>
-  <div class="options" role="radiogroup" aria-label="Source">
-    <label class="option">
-      <input type="radio" name="source" value="camera">
-      <span><strong>Camera</strong></span>
-    </label>
-    <label class="option">
-      <input type="radio" name="source" value="display">
-      <span><strong>Tab, window or screen</strong><small>Chrome asks which one to share.</small></span>
-    </label>
-    <label class="option">
-      <input type="radio" name="source" value="tab-video">
-      <span><strong>Video in a tab</strong><small>Pick a tab; only its video is shown.</small></span>
-    </label>
-    <label class="option">
-      <input type="radio" name="source" value="file">
-      <span>
-        <strong>Video file</strong>
-        <small><span id="file-status">No file chosen yet.</span> <button id="choose-file" type="button" class="link">Choose…</button></small>
-      </span>
-    </label>
-    <label class="option">
-      <input type="radio" name="source" value="relay">
-      <span><strong>Shared video</strong><small id="relay-status">Right-click any video to share it.</small></span>
-    </label>
-  </div>
-  <h2><label for="background">Background</label></h2>
-  <div class="background-row">
-    <select id="background">
-      <option value="keep">Keep</option>
-      <option value="blur">Blur</option>
-      <option value="image">Image</option>
-      <option value="display">Over a tab, window or screen</option>
-      <option value="tab-video">Over the video in a tab</option>
-      <option value="file">Over the video file</option>
-      <option value="relay">Over the shared video</option>
-    </select>
-    <button id="choose-image" type="button" class="link" hidden>Choose…</button>
-  </div>
-  <p id="background-hint" class="section-hint background-hint" hidden></p>
+  <h2>Scenes</h2>
+  <p class="section-hint">Switch any time, even mid-call.</p>
+  <div id="scenes" class="scenes" role="radiogroup" aria-label="Scenes"></div>
 
-  <div class="flips">
-    <label><input type="checkbox" id="flip-horizontal"> Flip horizontally</label>
-    <label><input type="checkbox" id="flip-vertical"> Flip vertically</label>
+  <div class="quick">
+    <label><input type="checkbox" id="camera"> Camera on</label>
+    <label><input type="checkbox" id="mirror"> Mirror</label>
   </div>
+  <p id="notice" class="notice" hidden></p>
 
-  <h2>Filter</h2>
-  <div id="filters" role="radiogroup" aria-label="Filter"></div>
-
-  <button id="edit" type="button">Edit or create filters…</button>
+  <button id="studio" type="button">Open Studio…</button>
 
   <script src="js/filter-registry.js"></script>
   <script src="js/filters/none.js"></script>
@@ -79,6 +39,7 @@
   <script src="js/filters/kaleidoscope.js"></script>
   <script src="js/filters/rgb-glitch.js"></script>
   <script src="js/filters/eye-bar.js"></script>
+  <script src="js/scenes.js"></script>
   <script src="js/popup.js"></script>
 </body>
 </html>

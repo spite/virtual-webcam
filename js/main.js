@@ -7,10 +7,10 @@
     ready: Promise.resolve(),
     current: () => ({
       virtualDefault: false,
-      filter: { language: "glsl", source: vw.findFilter(vw.DEFAULT_FILTER_ID).source },
-      videoSource: "camera",
+      camera: true,
       flip: { x: false, y: false },
-      background: "keep",
+      background: "room",
+      effects: [{ language: "glsl", source: vw.findFilter(vw.DEFAULT_FILTER_ID).source }],
       backgroundImage: null,
     }),
     onChange() {},

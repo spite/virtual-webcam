@@ -77,7 +77,7 @@
     return track;
   }
 
-  // settings: { ready: Promise, current(): { virtualDefault, filter, videoSource, flip, background, backgroundImage }, onChange(listener) }
+  // settings: { ready: Promise, current(): { virtualDefault, camera, flip, background, effects, backgroundImage }, onChange(listener) }
   function monkeyPatchMediaDevices(settings) {
     if (MediaDevices.prototype[PATCHED]) return;
     Object.defineProperty(MediaDevices.prototype, PATCHED, { value: true });
@@ -96,29 +96,29 @@
     // Applies the filter, flip and effects to every running stream, in order, so a slow processor load can't land late.
     const applySettings = () => {
       applying = applying.then(async () => {
-        const current = settings.current();
+        const plan = vw.effects.plan(settings.current());
         for (const filter of filters) {
           if (filter.stopped) filters.delete(filter);
         }
-        const processor = filters.size ? await vw.effects?.sync(current) ?? null : null;
+        const processor = filters.size ? await vw.effects.sync(plan) : null;
         for (const filter of filters) {
-          filter.setFilter(current.filter);
-          filter.setFlip(current.flip);
+          filter.setEffects(plan.effects);
+          filter.setFlip(plan.flip);
           filter.setProcessing(processor);
         }
       });
       return applying;
     };
 
-    let videoSource = null;
-    let background = null;
+    let main = null;
+    let secondary;
     settings.onChange(() => {
-      const current = settings.current();
+      const plan = vw.effects.plan(settings.current());
       applySettings();
-      if (videoSource !== null && current.videoSource !== videoSource) manager.switchTo(current.videoSource);
-      if (background !== null && current.background !== background) manager.setBackground(current.background);
-      videoSource = current.videoSource;
-      background = current.background;
+      if (main !== null && plan.main !== main) manager.switchTo(plan.main);
+      if (main !== null && plan.secondary !== secondary) manager.setBackground(plan.secondary);
+      main = plan.main;
+      secondary = plan.secondary;
     });
     const enumerateDevicesFn = MediaDevices.prototype.enumerateDevices;
 
@@ -148,13 +148,13 @@
       }
 
       await settings.ready;
-      const current = settings.current();
-      const result = await manager.start(current.videoSource, withoutDeviceId(video), (track, stop) => {
+      const plan = vw.effects.plan(settings.current());
+      const result = await manager.start(plan.main, withoutDeviceId(video), (track, stop) => {
         const filter = new FilterStream(track, vw.PASSTHROUGH_SHADER, stop);
-        filter.setFilter(current.filter);
-        filter.setFlip(current.flip);
+        filter.setEffects(plan.effects);
+        filter.setFlip(plan.flip);
         return filter;
-      }, current.background);
+      }, plan.secondary);
 
       let audioTracks = [];
       if (constraints.audio) {
