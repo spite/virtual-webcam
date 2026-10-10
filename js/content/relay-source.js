@@ -3,6 +3,7 @@
   const content = (globalThis.__virtualWebcamContent ??= { handlers: {} });
   const isTop = window === window.top;
   const MAX_BITRATE = 8_000_000;
+  const MAX_CONNECTIONS = 8;
 
   let pointer = null;
   let share = null;
@@ -101,6 +102,9 @@
   }
 
   async function answer(relayId, offer) {
+    if (share.connections.size >= MAX_CONNECTIONS) {
+      throw new Error("Too many active connections.");
+    }
     const pc = new RTCPeerConnection();
     share.connections.set(relayId, pc);
     pc.addEventListener("connectionstatechange", () => {
